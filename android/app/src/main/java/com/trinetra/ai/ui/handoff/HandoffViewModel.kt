@@ -10,12 +10,20 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.core.content.ContextCompat
+import com.trinetra.ai.api.V3ApiClient
 import com.trinetra.ai.ble.DemoBleScaleTelemetrySource
 import com.trinetra.ai.ble.ScaleTelemetryPacket
 import com.trinetra.ai.cv.CVAnalysisResult
 import com.trinetra.ai.data.local.AppDatabase
+import com.trinetra.ai.data.local.CheckpointRecordEntity
+import com.trinetra.ai.data.local.EvidenceRecordEntity
+import com.trinetra.ai.data.local.OutboxEventEntity
+import com.trinetra.ai.data.local.SerializedUnitCacheEntity
 import com.trinetra.ai.data.local.TelemetryEntity
+import com.trinetra.ai.data.local.VerificationRecordEntity
+import com.trinetra.ai.data.local.VerificationSyncState
 import com.trinetra.ai.data.sync.TelemetryUploadWorker
+import com.trinetra.ai.data.sync.VerificationSyncWorker
 import com.trinetra.ai.nlp.VoiceClassificationResult
 import com.trinetra.ai.nlp.VoiceClassifier
 import com.trinetra.ai.identity.QrProductIdentifierSource
@@ -46,7 +54,8 @@ sealed interface HandoffState {
         val telemetryJson: String,
         val isOfflineQueued: Boolean,
         val engineUsed: String,  // "GROQ_CLOUD" | "LOCAL_CPU"
-        val scaleReading: ScaleTelemetryPacket? = null
+        val scaleReading: ScaleTelemetryPacket? = null,
+        val decision: String? = null
     ) : HandoffState
     data class Error(val errorMessage: String) : HandoffState
 }
@@ -55,6 +64,9 @@ sealed interface HandoffState {
 sealed class HandoffIntent {
     data class ScanSeal(val sealId: String) : HandoffIntent()
     data class SetPhysicalIdentity(val serial: String, val imei: String?) : HandoffIntent()
+    data class ScaleReading(val baseWeightGrams: Double) : HandoffIntent()
+    // New intent to submit the entire verification flow with condition and optional photo
+    data class SubmitVerification(val condition: String, val photoFilePath: String?) : HandoffIntent()
     object StartRecording : HandoffIntent()
     data class ProcessVoiceInput(val rawTranscript: String) : HandoffIntent()
     object SubmitTelemetry : HandoffIntent()
@@ -62,7 +74,6 @@ sealed class HandoffIntent {
     // between a consistent return (642g, matches outbound) and a swap scenario (210g).
     // In production this value comes from a real GATT callback; in this demo path we
     // preserve the selected value exactly so the fraud logic compares real numbers.
-    data class ScaleReading(val baseWeightGrams: Double) : HandoffIntent()
 }
 
 /**
@@ -77,7 +88,7 @@ class HandoffViewModel(application: Application) : AndroidViewModel(application)
     companion object {
         const val DEMO_CASE_ID = "CASE-ORD-98402"
         const val DEMO_ORDER_ID = "ORD-98402"
-        const val DEMO_PACKAGE_ID = "TRN-PKG-7729-A"
+        const val DEMO_PACKAGE_ID = "UNIT-SN001"
         const val DEMO_PRODUCT = "Smartphone"
     }
 
@@ -90,7 +101,14 @@ class HandoffViewModel(application: Application) : AndroidViewModel(application)
     private val qrIdentifierSource = QrProductIdentifierSource()
     private val scaleManager = DemoBleScaleTelemetrySource()
     private val database = AppDatabase.getInstance(application)
+    private var currentPhotoPath: String? = null
+    private var currentVerificationId: String? = null
+    private var currentOfflineUnitLabel: String? = null
     private var currentSealId: String = "TRN-SEAL-8821-X"
+    // expose photo path for submission
+    fun updatePhotoPath(path: String) {
+        currentPhotoPath = path
+    }
     private var currentObservedSerial: String? = null
     private var currentObservedImei: String? = null
     private var currentPackageId: String = DEMO_PACKAGE_ID
@@ -132,6 +150,10 @@ class HandoffViewModel(application: Application) : AndroidViewModel(application)
             is HandoffIntent.ScaleReading -> {
                 currentScaleReading = scaleManager.readScaleData(baseWeightGrams = intent.baseWeightGrams)
                 Log.i("HandoffViewModel", "[BLE] Signed scale reading captured: ${currentScaleReading?.weightGrams}g")
+            }
+            is HandoffIntent.SubmitVerification -> {
+                // Use current photo path if not provided directly
+                viewModelScope.launch { submitVerificationFlow(intent.condition, intent.photoFilePath ?: currentPhotoPath) }
             }
         }
     }
@@ -297,13 +319,6 @@ class HandoffViewModel(application: Application) : AndroidViewModel(application)
             }
             put("outbound_weight_grams", outboundWeightGrams)
             put("camera_mode", "CAMERAX_OPENCV")
-            currentCameraMetrics?.let { metrics ->
-                put("camera_metrics", JSONObject().apply {
-                    put("laplacian_variance", metrics.laplacianVariance)
-                    put("edge_density", metrics.cannyEdgeDensity)
-                    put("processing_time_ms", metrics.latencyMs)
-                })
-            }
             put("parser_mode", if (engineUsed == "LOCAL_CPU") "LOCAL_CPU_PARSER" else "GROQ_CLOUD_PARSER")
             if (currentScaleReading != null) {
                 put("return_weight_grams", currentScaleReading!!.weightGrams)
@@ -334,23 +349,20 @@ class HandoffViewModel(application: Application) : AndroidViewModel(application)
             outboundWeightGrams = outboundWeightGrams,
             returnWeightGrams = currentScaleReading?.weightGrams,
             scaleSignatureJson = currentScaleReading?.jsonPayload,
-            cameraMetricsJson = currentCameraMetrics?.let { metrics ->
-                JSONObject().apply {
-                    put("laplacian_variance", metrics.laplacianVariance)
-                    put("edge_density", metrics.cannyEdgeDensity)
-                    put("processing_time_ms", metrics.latencyMs)
-                }.toString()
-            },
+            cameraMetricsJson = null,
             parserMode = if (engineUsed == "LOCAL_CPU") "LOCAL_CPU_PARSER" else "GROQ_CLOUD_PARSER",
             scaleMode = if (currentScaleReading != null) "DEMO_GATT_SCALE" else "NOT_CAPTURED"
         )
         withContext(Dispatchers.IO) {
             database.telemetryDao().insertTelemetry(entity)
         }
+        ensureUnitCacheSeeded()
 
-        // Enqueue Jetpack WorkManager background sync job
-        TelemetryUploadWorker.enqueue(getApplication<Application>())
-
+        // Old telemetry upload flow – replaced by V3 verification flow
+        // TelemetryUploadWorker.enqueue(getApplication<Application>())
+        // New V3 flow: open verification, submit checkpoint with observed data, photo, condition, then fetch verdict.
+        // This will be triggered by a new intent (SubmitVerification) implemented later.
+        // Existing telemetry path remains for voice parsing; new V3 flow will set its own Success state.
         _state.value = HandoffState.Success(
             caseId = caseId,
             scannedSealId = currentSealId,
@@ -359,7 +371,8 @@ class HandoffViewModel(application: Application) : AndroidViewModel(application)
             telemetryJson = jsonPayload,
             isOfflineQueued = true,
             engineUsed = engineUsed,
-            scaleReading = currentScaleReading
+            scaleReading = currentScaleReading,
+            decision = null
         )
     }
 
@@ -385,6 +398,274 @@ class HandoffViewModel(application: Application) : AndroidViewModel(application)
             Log.w("HandoffViewModel", "Live location unavailable: ${securityException.message}")
             null
         }
+    }
+
+    /** New V3 verification workflow */
+    private suspend fun submitVerificationFlow(condition: String, photoFilePath: String?) {
+        val ctx = getApplication<Application>()
+        ensureUnitCacheSeeded()
+        val unit = database.verificationDao().getSerializedUnit(currentPackageId)
+            ?: SerializedUnitCacheEntity(
+                unitId = currentPackageId,
+                product = DEMO_PRODUCT,
+                expectedSerial = "SN001",
+                expectedImei = "IMEI001",
+                lastSyncedAt = Instant.now().toString(),
+                source = "LOCAL_FALLBACK"
+            )
+
+        val expectedSerial = unit.expectedSerial
+        val expectedImei = unit.expectedImei
+        val localDecision = evaluateProvisionalDecision(expectedSerial, currentObservedSerial, expectedImei, currentObservedImei, condition)
+        val verificationId = UUID.randomUUID().toString()
+        val checkpointId = UUID.randomUUID().toString()
+        val clientEventId = UUID.randomUUID().toString()
+        val timestamp = Instant.now().toString()
+        currentVerificationId = verificationId
+
+        val verificationRecord = VerificationRecordEntity(
+            verificationId = verificationId,
+            unitId = currentPackageId,
+            operatorId = DEMO_ORDER_ID,
+            state = "PENDING",
+            localDecision = localDecision,
+            serverDecision = null,
+            createdAt = timestamp,
+            updatedAt = timestamp,
+            lastSyncError = null
+        )
+        val checkpointRecord = CheckpointRecordEntity(
+            checkpointId = checkpointId,
+            verificationId = verificationId,
+            clientEventId = clientEventId,
+            sequenceNumber = 1,
+            unitId = currentPackageId,
+            expectedSerial = expectedSerial,
+            observedSerial = currentObservedSerial ?: "",
+            expectedImei = expectedImei,
+            observedImei = currentObservedImei,
+            condition = condition,
+            decision = localDecision,
+            timestamp = timestamp,
+            syncState = VerificationSyncState.PENDING.name
+        )
+
+        withContext(Dispatchers.IO) {
+            database.verificationDao().upsertVerification(verificationRecord)
+            database.verificationDao().upsertCheckpoint(checkpointRecord)
+        }
+
+        val payload = JSONObject().apply {
+            put("verificationId", verificationId)
+            put("unitId", currentPackageId)
+            put("operatorId", DEMO_ORDER_ID)
+            put("checkpointId", checkpointId)
+            put("clientEventId", clientEventId)
+            put("sequenceNumber", 1)
+            put("observedSerial", currentObservedSerial ?: "")
+            put("observedImei", currentObservedImei ?: JSONObject.NULL)
+            put("condition", condition)
+            put("expectedSerial", expectedSerial)
+            put("expectedImei", expectedImei ?: JSONObject.NULL)
+        }.toString()
+
+        val evidenceId = if (photoFilePath != null) {
+            val newEvidenceId = UUID.randomUUID().toString()
+            val evidencePayload = JSONObject().apply {
+                put("source", "CAMERAX_OPENCV")
+                put("storageReference", photoFilePath)
+                put("capturedBy", DEMO_ORDER_ID)
+                put("type", "CAMERA_OBSERVATION")
+            }.toString()
+            withContext(Dispatchers.IO) {
+                database.verificationDao().upsertEvidence(
+                    EvidenceRecordEntity(
+                        evidenceId = newEvidenceId,
+                        verificationId = verificationId,
+                        checkpointId = checkpointId,
+                        clientEventId = UUID.randomUUID().toString(),
+                        type = "CAMERA_OBSERVATION",
+                        source = "CAMERAX_OPENCV",
+                        storageReference = photoFilePath,
+                        capturedBy = DEMO_ORDER_ID,
+                        timestamp = timestamp,
+                        payloadJson = evidencePayload,
+                        syncState = VerificationSyncState.PENDING.name
+                    )
+                )
+            }
+            withContext(Dispatchers.IO) {
+                database.verificationDao().insertOutboxItem(
+                    OutboxEventEntity(
+                        outboxId = UUID.randomUUID().toString(),
+                        eventType = "EVIDENCE",
+                        verificationId = verificationId,
+                        checkpointId = checkpointId,
+                        evidenceId = newEvidenceId,
+                        clientEventId = UUID.randomUUID().toString(),
+                        payload = evidencePayload,
+                        localFilePath = photoFilePath,
+                        createdAt = timestamp,
+                        status = VerificationSyncState.PENDING.name,
+                        lastError = null
+                    )
+                )
+            }
+            newEvidenceId
+        } else null
+
+        withContext(Dispatchers.IO) {
+            database.verificationDao().insertOutboxItem(
+                OutboxEventEntity(
+                    outboxId = UUID.randomUUID().toString(),
+                    eventType = "CHECKPOINT",
+                    verificationId = verificationId,
+                    checkpointId = checkpointId,
+                    evidenceId = evidenceId,
+                    clientEventId = clientEventId,
+                    payload = payload,
+                    localFilePath = photoFilePath,
+                    createdAt = timestamp,
+                    status = VerificationSyncState.PENDING.name,
+                    lastError = null
+                )
+            )
+        }
+
+        val online = isBackendReachable()
+        if (online) {
+            val response = withContext(Dispatchers.IO) {
+                V3ApiClient.openVerification(ctx, currentPackageId, DEMO_ORDER_ID)
+            }
+            if (response != null) {
+                val checkpointResponse = withContext(Dispatchers.IO) {
+                    V3ApiClient.submitCheckpoint(
+                        context = ctx,
+                        verificationId = response,
+                        checkpointId = checkpointId,
+                        clientEventId = clientEventId,
+                        sequenceNumber = 1,
+                        location = readCurrentLocation()?.let { "${it.latitude},${it.longitude}" } ?: "UNKNOWN",
+                        operatorId = DEMO_ORDER_ID,
+                        observedSerial = currentObservedSerial,
+                        observedImei = currentObservedImei,
+                        condition = condition,
+                        photoFilePath = photoFilePath
+                    )
+                }
+                val serverDecision = checkpointResponse?.optString("decision")?.takeIf { it.isNotBlank() } ?: localDecision
+                withContext(Dispatchers.IO) {
+                    database.verificationDao().upsertVerification(
+                        database.verificationDao().getVerification(verificationId)?.copy(
+                            state = "SYNCED",
+                            serverDecision = serverDecision,
+                            lastSyncError = null,
+                            updatedAt = Instant.now().toString()
+                        ) ?: verificationRecord.copy(state = "SYNCED", serverDecision = serverDecision, updatedAt = Instant.now().toString())
+                    )
+                }
+                _state.value = HandoffState.Success(
+                    caseId = response,
+                    scannedSealId = currentSealId,
+                    transcript = "",
+                    result = VoiceClassificationResult(false, "INTACT", "NORMAL", 0.0, 0L),
+                    telemetryJson = payload,
+                    isOfflineQueued = false,
+                    engineUsed = "V3_BACKEND",
+                    scaleReading = currentScaleReading,
+                    decision = "SERVER VERIFIED\n$serverDecision"
+                )
+            } else {
+                _state.value = HandoffState.Success(
+                    caseId = verificationId,
+                    scannedSealId = currentSealId,
+                    transcript = "",
+                    result = VoiceClassificationResult(false, "INTACT", "NORMAL", 0.0, 0L),
+                    telemetryJson = payload,
+                    isOfflineQueued = true,
+                    engineUsed = "OFFLINE",
+                    scaleReading = currentScaleReading,
+                    decision = "PROVISIONAL - PENDING SERVER SYNC\n$localDecision"
+                )
+            }
+        } else {
+            _state.value = HandoffState.Success(
+                caseId = verificationId,
+                scannedSealId = currentSealId,
+                transcript = "",
+                result = VoiceClassificationResult(false, "INTACT", "NORMAL", 0.0, 0L),
+                telemetryJson = payload,
+                isOfflineQueued = true,
+                engineUsed = "OFFLINE",
+                scaleReading = currentScaleReading,
+                decision = "PROVISIONAL - PENDING SERVER SYNC\n$localDecision"
+            )
+        }
+
+        if (photoFilePath != null) {
+            java.io.File(photoFilePath).let { if (it.exists()) it.absolutePath }
+        }
+    }
+
+    private suspend fun ensureUnitCacheSeeded() {
+        val cached = withContext(Dispatchers.IO) {
+            database.verificationDao().getSerializedUnit(currentPackageId)
+        }
+        if (cached == null) {
+            val seed = SerializedUnitCacheEntity(
+                unitId = currentPackageId,
+                product = DEMO_PRODUCT,
+                expectedSerial = "SN001",
+                expectedImei = "IMEI001",
+                lastSyncedAt = Instant.now().toString(),
+                source = "SEED"
+            )
+            withContext(Dispatchers.IO) {
+                database.verificationDao().upsertSerializedUnit(seed)
+            }
+            currentOfflineUnitLabel = "OFFLINE - USING CACHED UNIT DATA"
+        } else {
+            currentOfflineUnitLabel = "OFFLINE - USING CACHED UNIT DATA"
+        }
+    }
+
+    private fun evaluateProvisionalDecision(
+        expectedSerial: String,
+        observedSerial: String?,
+        expectedImei: String?,
+        observedImei: String?,
+        condition: String?
+    ): String {
+        val serialMatch = !observedSerial.isNullOrBlank() && observedSerial.trim().equals(expectedSerial.trim(), ignoreCase = true)
+        val imeiMatch = if (expectedImei.isNullOrBlank() || observedImei.isNullOrBlank()) true else observedImei.trim().equals(expectedImei.trim(), ignoreCase = true)
+        return when {
+            !serialMatch -> "HOLD"
+            !imeiMatch -> "HOLD"
+            condition.equals("DAMAGED", ignoreCase = true) || condition.equals("TAMPERED", ignoreCase = true) -> "REVIEW"
+            else -> "PASS"
+        }
+    }
+
+    private suspend fun isBackendReachable(): Boolean = withContext(Dispatchers.IO) {
+        for (host in backendHosts) {
+            try {
+                val connection = URL("$host/api/verifications").openConnection() as HttpURLConnection
+                connection.connectTimeout = 1500
+                connection.readTimeout = 1500
+                connection.requestMethod = "GET"
+                connection.connect()
+                val responseCode = connection.responseCode
+                Log.i("HandoffViewModel", "Backend probe $host -> HTTP $responseCode")
+                if (responseCode in 200..299) {
+                    connection.disconnect()
+                    return@withContext true
+                }
+                connection.disconnect()
+            } catch (exception: Exception) {
+                Log.w("HandoffViewModel", "Backend probe failed $host: ${exception.javaClass.simpleName}: ${exception.message}")
+            }
+        }
+        return@withContext false
     }
 
     override fun onCleared() {

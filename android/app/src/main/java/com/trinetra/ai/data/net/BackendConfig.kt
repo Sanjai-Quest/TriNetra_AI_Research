@@ -20,9 +20,7 @@ object BackendConfig {
     private const val KEY_CUSTOM_HOST = "custom_backend_host"
 
     private val DEFAULT_HOSTS = listOf(
-        "http://192.168.0.103:8080",
-        "http://10.0.2.2:8080",      // Android emulator alias for host machine
-        "http://127.0.0.1:8080"
+        "http://127.0.0.1:8080"       // ADB reverse tunnel for a USB-connected device
     )
 
     fun getHosts(context: Context): List<String> {

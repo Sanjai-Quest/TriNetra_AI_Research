@@ -177,6 +177,10 @@ class TelemetryUploadWorker(
                 if (responseCode in 200..299) {
                     val respText = connection.inputStream.bufferedReader().use { it.readText() }
                     android.util.Log.i("TelemetryUploadWorker", "Backend Verdict Received: $respText")
+                    val cameraPayload = recordHasCameraEvidence(jsonBody)
+                    if (cameraPayload != null) {
+                        uploadCameraEvidence(host, verificationId, caseId, cameraPayload)
+                    }
                     return true
                 }
             } catch (e: Exception) {
@@ -186,6 +190,52 @@ class TelemetryUploadWorker(
             }
         }
         return false
+    }
+
+    private fun recordHasCameraEvidence(jsonBody: String): String? {
+        val root = JSONObject(jsonBody)
+        return root.optJSONArray("evidence")?.let { evidence ->
+            (0 until evidence.length()).asSequence()
+                .map { evidence.getJSONObject(it) }
+                .firstOrNull { it.optString("source") == "CAMERAX_OPENCV" }
+                ?.optString("payloadJson")
+        }
+    }
+
+    private fun uploadCameraEvidence(host: String, verificationId: String, caseId: String,
+                                     cameraPayload: String?) {
+        if (cameraPayload.isNullOrBlank()) return
+        var connection: HttpURLConnection? = null
+        try {
+            val url = URL("$host/api/verifications/$verificationId/evidence")
+            connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json; utf-8")
+            connection.setRequestProperty("Accept", "application/json")
+            connection.connectTimeout = 3000
+            connection.readTimeout = 3000
+            connection.doOutput = true
+            val body = JSONObject().apply {
+                put("evidenceId", "camera-$caseId")
+                put("clientEventId", "evidence-camera-$caseId")
+                put("checkpointId", "checkpoint-$caseId")
+                put("type", "CAMERA_OBSERVATION")
+                put("source", "CAMERAX_OPENCV")
+                put("storageReference", "room://telemetry/$caseId/camera")
+                put("payloadJson", cameraPayload)
+                put("capturedBy", "mobile-operator")
+                put("fileHash", "metadata-$caseId")
+            }.toString()
+            OutputStreamWriter(connection.outputStream, "UTF-8").use { writer ->
+                writer.write(body)
+                writer.flush()
+            }
+            android.util.Log.i("TelemetryUploadWorker", "Camera evidence response=${connection.responseCode}")
+        } catch (e: Exception) {
+            android.util.Log.w("TelemetryUploadWorker", "Camera evidence upload failed: ${e.message}")
+        } finally {
+            connection?.disconnect()
+        }
     }
 
     companion object {

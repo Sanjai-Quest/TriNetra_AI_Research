@@ -24,6 +24,7 @@ public class LogisticsService {
     private final CustodyEventRepository custodyRepository;
     private final AuditEventRepository auditRepository;
     private final InvestigationRepository investigationRepository;
+    private final EvidenceRepository evidenceRepository;
     private final VerdictService verdictService;
 
     @Transactional
@@ -190,6 +191,42 @@ public class LogisticsService {
     public List<Investigation> investigations(String verificationId) {
         getVerification(verificationId);
         return investigationRepository.findByVerificationId(verificationId).map(List::of).orElse(List.of());
+    }
+
+    @Transactional
+    public Evidence recordEvidence(String verificationId, EvidenceRequest request) {
+        Verification verification = getVerification(verificationId);
+        requireText(request.getClientEventId(), "clientEventId");
+        var duplicate = evidenceRepository.findByClientEventId(request.getClientEventId());
+        if (duplicate.isPresent()) return duplicate.get();
+        requireText(request.getCheckpointId(), "checkpointId");
+        if (!checkpointRepository.existsById(request.getCheckpointId())) {
+            throw new IllegalArgumentException("Checkpoint not found: " + request.getCheckpointId());
+        }
+        Evidence evidence = Evidence.builder()
+                .evidenceId(request.getEvidenceId() == null || request.getEvidenceId().isBlank()
+                        ? UUID.randomUUID().toString() : request.getEvidenceId())
+                .verificationId(verificationId)
+                .checkpointId(request.getCheckpointId())
+                .type(request.getType() == null ? EvidenceType.OTHER : request.getType())
+                .source(request.getSource() == null ? EvidenceSource.CAMERAX_OPENCV : request.getSource())
+                .storageReference(request.getStorageReference())
+                .payloadJson(request.getPayloadJson() == null ? "{}" : request.getPayloadJson())
+                .capturedBy(request.getCapturedBy())
+                .createdAt(parseTime(request.getCapturedAt()))
+                .fileHash(request.getFileHash())
+                .clientEventId(request.getClientEventId())
+                .build();
+        Evidence saved = evidenceRepository.save(evidence);
+        audit(verificationId, "EVIDENCE_SUBMITTED", request.getCapturedBy(),
+                "{\"evidenceId\":\"" + saved.getEvidenceId() + "\",\"checkpointId\":\""
+                        + saved.getCheckpointId() + "\"}");
+        return saved;
+    }
+
+    public List<Evidence> evidence(String verificationId) {
+        getVerification(verificationId);
+        return evidenceRepository.findByVerificationIdOrderByCreatedAtAsc(verificationId);
     }
 
     public Map<String, Object> unitHistory(String unitId) {

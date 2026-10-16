@@ -80,7 +80,8 @@ fun TriNetraApp() {
                     onInvalidPackage = { value ->
                         Toast.makeText(context, "Invalid demo QR: $value. Scan ORD-98402.", Toast.LENGTH_SHORT).show()
                     },
-                    scanProductQrOnly = scanProductQr
+                    scanProductQrOnly = scanProductQr,
+                    onPhotoCaptured = handoffViewModel::updatePhotoPath
                 )
             }
         }

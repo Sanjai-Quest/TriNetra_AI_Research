@@ -32,7 +32,8 @@ fun HandoffScreen(viewModel: HandoffViewModel, onScanProductQr: () -> Unit = {})
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
     val liveLocation by viewModel.liveLocation.collectAsState()
-    var sampleVoiceInput by remember { mutableStateOf("Box phata hai, weight light, seal intact") }
+    var sampleVoiceInput by remember { mutableStateOf("Box is intact, weight is normal, seal is intact") }
+    var selectedCondition by remember { mutableStateOf("NORMAL") }
     var observedSerial by remember { mutableStateOf("") }
     var observedImei by remember { mutableStateOf("") }
     var backendHostField by remember {
@@ -98,8 +99,9 @@ fun HandoffScreen(viewModel: HandoffViewModel, onScanProductQr: () -> Unit = {})
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN")
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "ta-IN")
                 putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
-                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak voice testimony (Hindi or English)...")
+                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak voice testimony in Tamil or English...")
             }
             speechRecognizerLauncher.launch(intent)
         } else {
@@ -117,8 +119,9 @@ fun HandoffScreen(viewModel: HandoffViewModel, onScanProductQr: () -> Unit = {})
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN")
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "ta-IN")
                 putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
-                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak voice testimony (Hindi or English)...")
+                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak voice testimony in Tamil or English...")
             }
             try {
                 speechRecognizerLauncher.launch(intent)
@@ -221,6 +224,31 @@ fun HandoffScreen(viewModel: HandoffViewModel, onScanProductQr: () -> Unit = {})
                     Button(onClick = onScanProductQr, modifier = Modifier.fillMaxWidth()) {
                         Text("SCAN PRODUCT QR")
                     }
+                    // Condition selection
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedButton(
+                            onClick = { selectedCondition = "NORMAL" },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("NORMAL", fontSize = 9.sp) }
+                        OutlinedButton(
+                            onClick = { selectedCondition = "DAMAGED" },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("DAMAGED", fontSize = 9.sp) }
+                        OutlinedButton(
+                            onClick = { selectedCondition = "TAMPERED" },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("TAMPERED", fontSize = 9.sp) }
+                    }
+                    // Submit button
+                    Button(
+                        onClick = { viewModel.processIntent(HandoffIntent.SubmitVerification(selectedCondition, null)) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Submit Verification")
+                    }
                 }
             }
 
@@ -306,12 +334,12 @@ fun HandoffScreen(viewModel: HandoffViewModel, onScanProductQr: () -> Unit = {})
                     ) {
                         OutlinedButton(
                             onClick = {
-                                sampleVoiceInput = "Box phata hai, weight light, seal intact"
+                                sampleVoiceInput = "Box is intact, weight is normal, seal is intact"
                                 viewModel.processIntent(HandoffIntent.ProcessVoiceInput(sampleVoiceInput))
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Preset 1 (Hindi)", fontSize = 11.sp)
+                            Text("Preset 1 (English)", fontSize = 9.sp)
                         }
 
                         OutlinedButton(
@@ -321,7 +349,7 @@ fun HandoffScreen(viewModel: HandoffViewModel, onScanProductQr: () -> Unit = {})
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Preset 2 (Torn)", fontSize = 11.sp)
+                            Text("Preset 2 (Torn)", fontSize = 9.sp)
                         }
                     }
 
@@ -410,6 +438,16 @@ fun HandoffScreen(viewModel: HandoffViewModel, onScanProductQr: () -> Unit = {})
                                     color = Color(0xFF00FF00),
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 10.sp
+                                )
+                            }
+                            // Verdict display
+                            s.decision?.let { decision ->
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    "Verdict: $decision",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF006600)
                                 )
                             }
                         }

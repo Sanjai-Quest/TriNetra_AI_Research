@@ -32,6 +32,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.trinetra.ai.cv.CVAnalysisResult
 import com.trinetra.ai.cv.OpenCVProcessor
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import android.util.Log
+import java.io.File
 import com.trinetra.ai.identity.QrProductIdentifierSource
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
@@ -72,7 +76,8 @@ fun CameraScreen(
     onMetricsCaptured: (CVAnalysisResult) -> Unit = {},
     onPackageScanned: (String) -> Unit = {},
     onInvalidPackage: (String) -> Unit = {},
-    scanProductQrOnly: Boolean = false
+    scanProductQrOnly: Boolean = false,
+    onPhotoCaptured: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -108,6 +113,7 @@ fun CameraScreen(
     // so the CPU-bound math stays cheap and the on-screen numbers stay readable.
     val lastAnalysisMs = remember { AtomicLong(0L) }
     val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
+    val imageCaptureHolder = remember { mutableStateOf<ImageCapture?>(null) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -154,8 +160,13 @@ fun CameraScreen(
                                     it.setSurfaceProvider(previewView.surfaceProvider)
                                 }
                                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                                val imageCapture = ImageCapture.Builder()
+                                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                                    .build()
+                                imageCaptureHolder.value = imageCapture
 
                                 // Real frame analysis: reads the actual Y-plane (grayscale) of
+
                                 // each camera frame and runs it through OpenCVProcessor. This is
                                 // what makes the on-screen wear metrics respond to what the lens
                                 // is actually pointed at, instead of synthetic/random data.
@@ -211,7 +222,8 @@ fun CameraScreen(
                                         lifecycleOwner,
                                         cameraSelector,
                                         preview,
-                                        imageAnalysis
+                                        imageAnalysis,
+                                        imageCapture
                                     )
                                 } catch (e: Exception) {
                                     e.printStackTrace()
@@ -221,6 +233,29 @@ fun CameraScreen(
                         },
                         modifier = Modifier.fillMaxSize()
                     )
+                    // Capture Photo Button
+                    Button(
+                        onClick = {
+                            val capture = imageCaptureHolder.value ?: return@Button
+                            val photoFile = File(context.cacheDir, "evidence_${System.currentTimeMillis()}.jpg")
+                            val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+                            capture.takePicture(
+                                outputOptions,
+                                ContextCompat.getMainExecutor(context),
+                                object : ImageCapture.OnImageSavedCallback {
+                                    override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                                        onPhotoCaptured(photoFile.absolutePath)
+                                    }
+                                    override fun onError(exception: ImageCaptureException) {
+                                        Log.e("CameraScreen", "Photo capture failed: ${"$"}exception.message")
+                                    }
+                                }
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
+                    ) {
+                        Text("Capture Photo")
+                    }
 
                     // Overlay HUD Target Box
                     Box(
@@ -281,35 +316,11 @@ fun CameraScreen(
                     Text(if (scanProductQrOnly) "SCAN QR CONTAINING ORD-98402" else "LIVE PHYSICAL SIGNALS", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Laplacian Texture Variance:", fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                        Text(
-                            String.format("%.4f", currentMetrics.laplacianVariance),
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 13.sp,
-                            color = if (currentMetrics.laplacianVariance < 0.3) Color.Red else Color(0xFF008800)
-                        )
-                    }
+
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Canny Crease Edge Density:", fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                        Text(
-                            String.format("%.4f", currentMetrics.cannyEdgeDensity),
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 13.sp,
-                            color = if (currentMetrics.cannyEdgeDensity > 0.7) Color.Red else Color(0xFF008800)
-                        )
-                    }
+
 
                     Spacer(modifier = Modifier.height(6.dp))
 
@@ -328,8 +339,7 @@ fun CameraScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (currentMetrics.cannyEdgeDensity > 0.75 || currentMetrics.laplacianVariance < 0.25)
-                        Color(0xFFFFEBEE) else Color(0xFFE8F5E9)
+                    containerColor = Color(0xFFE8F5E9)
                 )
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
@@ -341,7 +351,7 @@ fun CameraScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text("PHYSICAL SIGNAL CAPTURED", fontWeight = FontWeight.Bold, color = Color(0xFF008800), fontSize = 16.sp)
-                    Text("Laplacian and edge measurements are attached to the active evidence case.", fontSize = 11.sp)
+                    Text("Telemetry data is being recorded to the active evidence case.", fontSize = 11.sp)
                 }
             }
         }

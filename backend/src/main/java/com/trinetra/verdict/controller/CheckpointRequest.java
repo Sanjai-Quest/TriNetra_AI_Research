@@ -15,4 +15,14 @@ public class CheckpointRequest {
     private String observedSerial;
     private String observedImei;
     private String conditionStatus;
+
+    public void setCondition(String condition) {
+        if (this.conditionStatus == null || this.conditionStatus.isBlank()) {
+            this.conditionStatus = condition;
+        }
+    }
+
+    public String getCondition() {
+        return conditionStatus;
+    }
 }

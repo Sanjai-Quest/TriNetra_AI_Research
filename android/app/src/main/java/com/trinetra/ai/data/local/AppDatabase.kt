@@ -7,10 +7,22 @@ import androidx.room.RoomDatabase
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
-@Database(entities = [TelemetryEntity::class], version = 5, exportSchema = false)
+@Database(
+    entities = [
+        TelemetryEntity::class,
+        SerializedUnitCacheEntity::class,
+        VerificationRecordEntity::class,
+        CheckpointRecordEntity::class,
+        EvidenceRecordEntity::class,
+        OutboxEventEntity::class
+    ],
+    version = 6,
+    exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun telemetryDao(): TelemetryDao
+    abstract fun verificationDao(): VerificationDao
 
     companion object {
         @Volatile
@@ -23,8 +35,6 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "trinetra_edge.db"
                 )
-                    // Prototype-only: wipes local cache on schema change instead of crashing.
-                    // Fine pre-demo; replace with a real Migration before any real deployment.
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

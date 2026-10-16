@@ -112,6 +112,26 @@ public class LogisticsController {
         }
     }
 
+    @PostMapping("/{verificationId}/evidence")
+    public ResponseEntity<?> evidence(@PathVariable String verificationId,
+                                      @RequestBody EvidenceRequest request) {
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(logisticsService.recordEvidence(verificationId, request));
+        } catch (IllegalArgumentException error) {
+            return error(HttpStatus.BAD_REQUEST, error.getMessage());
+        }
+    }
+
+    @GetMapping("/{verificationId}/evidence")
+    public ResponseEntity<?> evidence(@PathVariable String verificationId) {
+        try {
+            return ResponseEntity.ok(logisticsService.evidence(verificationId));
+        } catch (IllegalArgumentException error) {
+            return error(HttpStatus.NOT_FOUND, error.getMessage());
+        }
+    }
+
     @GetMapping("/{verificationId}/investigation")
     public ResponseEntity<?> investigation(@PathVariable String verificationId) {
         try {
@@ -121,6 +141,7 @@ public class LogisticsController {
             result.put("checkpoints", logisticsService.checkpoints(verificationId));
             result.put("custody", logisticsService.custody(verificationId));
             result.put("audit", logisticsService.audit(verificationId));
+            result.put("evidence", logisticsService.evidence(verificationId));
             result.put("investigations", logisticsService.investigations(verificationId));
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException error) {

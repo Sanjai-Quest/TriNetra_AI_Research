@@ -90,6 +90,7 @@ export const fetchClaimDetail = async (claimId: string): Promise<ClaimDetail | n
       checkpoints,
       custody: res.data.custody || [],
       audit: res.data.audit || [],
+      evidence: res.data.evidence || [],
       investigations: res.data.investigations || [],
       firstKnownDivergence: res.data.investigations?.[0]?.firstDivergenceCheckpointId
         ? checkpoints.find((item: { checkpointId: string }) => item.checkpointId === res.data.investigations[0].firstDivergenceCheckpointId) || null

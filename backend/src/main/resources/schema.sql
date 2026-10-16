@@ -1,5 +1,11 @@
 -- TriNetra PostgreSQL / SQL DDL Schema Definition
 DROP TABLE IF EXISTS verdicts CASCADE;
+DROP TABLE IF EXISTS investigations CASCADE;
+DROP TABLE IF EXISTS custody_events CASCADE;
+DROP TABLE IF EXISTS audit_events CASCADE;
+DROP TABLE IF EXISTS checkpoints CASCADE;
+DROP TABLE IF EXISTS verifications CASCADE;
+DROP TABLE IF EXISTS serialized_units CASCADE;
 DROP TABLE IF EXISTS evidence CASCADE;
 DROP TABLE IF EXISTS claims CASCADE;
 
@@ -19,10 +25,10 @@ CREATE TABLE claims (
     status VARCHAR(32) NOT NULL
 );
 
--- 2. Evidence Table
+-- 2. Evidence Table (base columns only; V3 columns added via ALTER TABLE below)
 CREATE TABLE evidence (
     evidence_id VARCHAR(64) PRIMARY KEY,
-    claim_id VARCHAR(64) NOT NULL REFERENCES claims(claim_id) ON DELETE CASCADE,
+    claim_id VARCHAR(64) REFERENCES claims(claim_id) ON DELETE CASCADE,
     source VARCHAR(64) NOT NULL,
     payload_json TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL
@@ -185,6 +191,10 @@ INSERT INTO evidence VALUES (
     'e-claim-005-a', 'CLAIM-005', 'WAREHOUSE_SCALE', '{"weight":200.0}', '2026-09-01 10:00:00'
 );
 
+-- The active dataset is the three serialized units below; legacy claim fixtures are cleared.
+DELETE FROM evidence;
+DELETE FROM claims;
+
 -- V3 identity, workflow, condition, and custody fields. These are added after
 -- legacy seed rows so the existing seed data remains readable during migration.
 ALTER TABLE claims ADD COLUMN expected_serial VARCHAR(128);
@@ -256,6 +266,19 @@ CREATE TABLE audit_events (
     created_at TIMESTAMP NOT NULL
 );
 
+ALTER TABLE evidence ADD COLUMN verification_id VARCHAR(64);
+ALTER TABLE evidence ADD COLUMN checkpoint_id VARCHAR(64);
+ALTER TABLE evidence ADD COLUMN type VARCHAR(32);
+ALTER TABLE evidence ADD COLUMN storage_reference VARCHAR(512);
+ALTER TABLE evidence ADD COLUMN captured_by VARCHAR(64);
+ALTER TABLE evidence ADD COLUMN file_hash VARCHAR(128);
+ALTER TABLE evidence ADD COLUMN client_event_id VARCHAR(64) UNIQUE;
+
+ALTER TABLE evidence ADD CONSTRAINT fk_evidence_verification
+    FOREIGN KEY (verification_id) REFERENCES verifications(verification_id);
+ALTER TABLE evidence ADD CONSTRAINT fk_evidence_checkpoint
+    FOREIGN KEY (checkpoint_id) REFERENCES checkpoints(checkpoint_id);
+
 CREATE TABLE investigations (
     investigation_id VARCHAR(64) PRIMARY KEY,
     verification_id VARCHAR(64) NOT NULL REFERENCES verifications(verification_id),
@@ -271,6 +294,5 @@ CREATE TABLE investigations (
 
 INSERT INTO serialized_units VALUES
     ('UNIT-SN001', 'ORD-98402', 'Smartphone', 'SN001', 'IMEI001', NULL, NULL, NULL, NULL),
-    ('XS-CMP-00001', 'ORD-20001', 'Footwear', 'XS-CMP-00001-SN', NULL, 'CMP_00001', 'Ajio', 'Pickup Failure', 'Ordered Adidas sneakers on Ajio. Delivered wrong shoe size; pickup agent cited box damage.'),
-    ('XS-CMP-00002', 'ORD-50002', 'Apparel/Clothing', 'XS-CMP-00002-SN', NULL, 'CMP_00002', 'Amazon', 'Counterfeit Product', 'Nike sneakers were reported counterfeit with poor sole stitching and delayed refund.'),
-    ('XS-CMP-00003', 'ORD-20003', 'Apparel/Clothing', 'XS-CMP-00003-SN', NULL, 'CMP_00003', 'Meesho', 'Used Product', 'A designer saree was reported used, stained, and torn after delivery.');
+    ('UNIT-SN002', 'ORD-98403', 'Smartphone', 'SN002', 'IMEI002', NULL, NULL, NULL, NULL),
+    ('UNIT-SN003', 'ORD-98404', 'Smartphone', 'SN003', 'IMEI003', NULL, NULL, NULL, NULL);

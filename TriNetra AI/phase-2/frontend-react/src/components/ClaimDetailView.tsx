@@ -101,6 +101,7 @@ export const ClaimDetailView: React.FC<ClaimDetailViewProps> = ({ claim, onOpenO
             <div className="mt-2 text-[10px] text-slate-500">{new Date(item.createdAt).toLocaleString()}</div>
           </div>
         ))}
+        <div className="text-xs text-slate-400">{claim.evidence?.length || 0} persisted evidence records linked to this verification.</div>
       </section>
     </div>
   );
