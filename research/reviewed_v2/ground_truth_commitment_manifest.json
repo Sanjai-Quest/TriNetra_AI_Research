@@ -1,0 +1,27 @@
+{
+  "manifest_version": "2.5.0",
+  "document_type": "TriNetra Ground-Truth Cryptographic Commitment Manifest",
+  "protocol_version": "2.5.0",
+  "commitment_status": "COMMITTED_LOCKED",
+  "commitment_timestamp_utc": "2026-10-24T16:03:59Z",
+  "hash_algorithm": "SHA-256",
+  "target_artifacts": [
+    {
+      "file_name": "ground_truth_ledger_60.csv",
+      "sha256_hash": "17225f2656b538f24307cd919512263f6af75e4a85b2c53a29fc2c571cd4916e",
+      "access_status": "RESTRICTED_EMBARGOED",
+      "embargo_release_condition": "Completion of all 240 human reviewer adjudication evaluations across Latin Square sessions 1-4"
+    },
+    {
+      "file_name": "preregistration_protocol_v2.5.md",
+      "sha256_hash": "e04d02740cacf889fe6e19e2fffee66d6aa57f4c9aeebedfda2199fb9ce3c913",
+      "access_status": "PUBLIC_OPEN_ACCESS"
+    },
+    {
+      "file_name": "revised_experiment_protocol.md",
+      "sha256_hash": "1e2751c6787da8c5671829acada858021dff18da9e11ab699dc34c9a8198bd70",
+      "access_status": "PUBLIC_OPEN_ACCESS"
+    }
+  ],
+  "governance_attestation": "COMMITTED MANIFEST: Approved by research lead on 2026-10-24. Ground-truth assignments locked prior to physical package staging. Plaintext ledger withheld from public repository to maintain reviewer blinding until trial completion."
+}

@@ -1,0 +1,4 @@
+observation_id,case_tracking_id,checkpoint_id,planned_journey_id_blinded,empirical_scale_reading_g,scale_calibration_check_g,photo_file_name,photo_sha256_hash,measured_ambient_lux,operator_id,timestamp_iso8601,handover_anomaly_observed
+# TriNetra AI: Empirical Physical Observation Record Template (Separate from Planned Staging Targets)
+# Status: BLANK / UNEXECUTED (Physical trials frozen under CONDITIONAL PIVOT)
+# Note: Actual empirical scale readings, photos, lux measurements, and timestamps must be recorded here during physical trial execution.
