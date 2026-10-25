@@ -1,3 +1,6 @@
+> [!NOTE]
+> **CLARIFICATION (2026-10-23)** — The 15/15 pass result below is a valid **unit/integration test**, not a research benchmark. Reporting F1=1.0000 on 15 curated synthetic scenarios does not constitute empirical validation of the decision system's real-world accuracy.
+
 # TriNetra Synthetic Data Testing Report
 Date: 2026-09-05
 Test Suite: Full-Stack End-to-End Validation (15 Scenarios)

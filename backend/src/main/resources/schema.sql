@@ -295,4 +295,10 @@ CREATE TABLE investigations (
 INSERT INTO serialized_units VALUES
     ('UNIT-SN001', 'ORD-98402', 'Smartphone', 'SN001', 'IMEI001', NULL, NULL, NULL, NULL),
     ('UNIT-SN002', 'ORD-98403', 'Smartphone', 'SN002', 'IMEI002', NULL, NULL, NULL, NULL),
-    ('UNIT-SN003', 'ORD-98404', 'Smartphone', 'SN003', 'IMEI003', NULL, NULL, NULL, NULL);
+    ('UNIT-SN003', 'ORD-98404', 'Smartphone', 'SN003', 'IMEI003', NULL, NULL, NULL, NULL),
+    -- Clean V3 test fixtures (pre-delivery physical verification scenarios)
+    -- These units have no complaint ID, no complaint text, and no platform attribution.
+    ('UNIT-TEST-001', 'ORD-TEST-001', 'Electronics', 'SN-ALPHA-01', 'IMEI-ALPHA-01', NULL, NULL, NULL, NULL),
+    ('UNIT-TEST-002', 'ORD-TEST-002', 'Electronics', 'SN-BETA-02',  'IMEI-BETA-02',  NULL, NULL, NULL, NULL),
+    ('UNIT-TEST-003', 'ORD-TEST-003', 'Footwear',    'SN-GAMMA-03', NULL,             NULL, NULL, NULL, NULL);
+

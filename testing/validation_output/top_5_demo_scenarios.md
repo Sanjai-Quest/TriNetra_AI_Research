@@ -1,7 +1,7 @@
 # TriNetra AI - Top 5 Demo Scenarios (Real Data)
 
 > **Source**: `trinetra_real_complaints_expanded.csv` - 1050 real consumer complaints
-> **Generated**: 2026-09-05 22:23:03
+> **Generated**: 2026-10-24 10:34:54
 
 These 5 scenarios are extracted from real data and cover distinct conflict archetypes.
 

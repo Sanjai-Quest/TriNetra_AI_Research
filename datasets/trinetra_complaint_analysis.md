@@ -1,3 +1,6 @@
+> [!CAUTION]
+> **SUPERSEDED (2026-10-23)** — The dataset analyzed here (n=1,050) is entirely template-generated, not empirically collected. NCH alignment claims are statistically invalid: 3.2×–3.7× category discrepancies were labeled "Strongly Aligned," and non-exclusive keyword flags were compared against single-label government census categories. See [`audit/result_reproducibility.md`](../../audit/result_reproducibility.md) §4 for evidence.
+
 # TriNetra AI — Empirical Research Analysis of Real-World E-Commerce Disputes
 
 **Dataset:** `trinetra_real_complaints_expanded.csv` (n=1050)  

@@ -53,6 +53,19 @@ def compute_fleiss_kappa(ratings_df, target_column, allowed_categories):
     m = len(reviewers)
     k = len(allowed_categories)
     
+    # Check for duplicate evaluations by the same reviewer for the same case
+    duplicates = ratings_df.duplicated(subset=['case_id', 'reviewer_id'])
+    if duplicates.any():
+        dup_rows = ratings_df[duplicates][['case_id', 'reviewer_id']].to_dict('records')
+        raise ValueError(f"Duplicate assessment found for case/reviewer: {dup_rows}")
+        
+    # Check that every case is evaluated by every reviewer (balanced design)
+    for case in cases:
+        case_reviewers = set(ratings_df[ratings_df['case_id'] == case]['reviewer_id'])
+        missing_revs = set(reviewers) - case_reviewers
+        if missing_revs:
+            raise ValueError(f"Imbalanced design: Case {case} missing ratings from reviewers: {missing_revs}")
+            
     # Build contingency matrix: n[i, j] = number of raters who assigned case i to category j
     cat_to_idx = {cat: idx for idx, cat in enumerate(allowed_categories)}
     n_matrix = np.zeros((N, k), dtype=int)
@@ -127,6 +140,12 @@ def evaluate_calibration_ratings(csv_path):
     null_count = df['attribution_assessment'].isna().sum()
     if null_count > 0:
         print(f"STATUS: Incomplete ratings: {null_count} / {len(df)} entries are blank. Complete all 40 ratings before computing Kappa.")
+        return False
+        
+    # Check for distinct reviewer count
+    distinct_reviewers = df['reviewer_id'].unique()
+    if len(distinct_reviewers) != 4:
+        print(f"ERROR: Expected ratings from exactly 4 distinct reviewers, found {len(distinct_reviewers)}: {sorted(distinct_reviewers)}")
         return False
         
     print(f"--- Computing Fleiss' Kappa from {len(df)} empirical ratings ---")

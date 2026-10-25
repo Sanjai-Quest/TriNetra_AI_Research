@@ -3,6 +3,10 @@
 **Hardware Reference:** iQOO 15 (Snapdragon 8 Elite, Dedicated Hexagon NPU, Adreno GPU)  
 **Ethical Blueprint:** Strict AI Principle (100% Non-Hallucinatory Decision Models)  
 
+> [!NOTE]
+> **Data Provenance & Research Scope Clarification (2026-10-23):**  
+> Physical package verification across supply chain checkpoints must adhere to the data schema and measurement uncertainty protocol defined in [`physical_observations_schema.md`](physical_observations_schema.md). All prior synthetic complaint CSV files in `datasets/` and `TriNetra AI/` are quarantined per audit findings ([`audit/label_and_leakage_findings.md`](audit/label_and_leakage_findings.md)).
+
 ---
 
 ## Part 1: Product Requirements Document (PRD)

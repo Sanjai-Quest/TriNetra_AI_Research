@@ -1,3 +1,6 @@
+> [!CAUTION]
+> **SUPERSEDED (2026-10-23)** — Backend accuracy (18/20), latency percentiles (P50=142ms, P95=267ms), and SLA verdicts in this report were fabricated by a simulation fallback when the backend was offline (audit Finding F-07). The underlying dataset (n=1,050) is also entirely template-generated. No metrics in this report should be cited as research results.
+
 # TriNetra AI - Real-World Validation Report
 
 **Dataset**: `trinetra_real_complaints_expanded.csv` - 1050 real consumer complaints  

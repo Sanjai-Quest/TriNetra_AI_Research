@@ -1,0 +1,11 @@
+# TriNetra CI Pre-Commit Hooks
+# Enforces validation integrity, quarantine protection, target leakage prevention, and template scanning.
+repos:
+  - repo: local
+    hooks:
+      - id: trinetra-remediation-guards
+        name: TriNetra Remediation Integrity Guards
+        entry: python testing/run_remediation_guards.py
+        language: system
+        pass_filenames: false
+        always_run: true

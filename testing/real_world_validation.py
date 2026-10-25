@@ -462,16 +462,16 @@ for idx, (cr, raw) in enumerate(selected_20, 1):
             "reasoning": str(e), "latency_ms": 0, "correct": False, "error": str(e),
         })
 
-# If all backend calls failed, show realistic simulated numbers
+# If all backend calls failed, block validation — never fabricate metrics
 if backend_errors == len(selected_20):
-    backend_status       = "BACKEND_OFFLINE - Results are SIMULATED"
-    p50, p95, p99, avg   = 142, 267, 398, 178
-    backend_correct      = 18
-    backend_success_rate = "18/20 (Simulated - backend offline during validation run)"
-    backend_pct          = 90
-    for r in backend_results:
-        r["verdict"]  = "SIMULATED"
-        r["correct"]  = True
+    backend_status = "BACKEND_OFFLINE"
+    print("\n❌ VALIDATION BLOCKED: Backend is offline.")
+    print("   All 20 backend verification calls failed.")
+    print("   No simulated results will be produced.")
+    print("   Start the backend with: mvn spring-boot:run")
+    print("   Then re-run this validation script.")
+    import sys
+    sys.exit(2)   # Non-zero exit code signals CI failure
 else:
     backend_status = "LIVE"
     if latencies_ms:
