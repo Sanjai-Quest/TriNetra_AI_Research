@@ -69,6 +69,7 @@ def export_schema_cmd(
 def fit_cmd(
     split: str = typer.Option("calibration", "--split", "-s", help="Dataset split to fit thresholds on (must be calibration)"),
     db_path: Optional[str] = typer.Option(None, "--db", help="Path to SQLite store"),
+    allow_synthetic_dry_run: bool = typer.Option(False, "--allow-synthetic-dry-run", help="Explicitly permit fitting using synthetic scale/floor fixtures"),
 ) -> None:
     """Fit quality, weight, visual, and Bayesian thresholds on calibration split."""
     if split != "calibration":
@@ -82,7 +83,7 @@ def fit_cmd(
     store = Store(db_path)
     journeys = []
     try:
-        res = fit_thresholds(journeys, split_name=split)
+        res = fit_thresholds(journeys, split_name=split, allow_synthetic_dry_run=allow_synthetic_dry_run)
         typer.secho(f"Successfully fitted thresholds: {res['saved_path']}", fg=typer.colors.GREEN)
         typer.echo(f"  theta (quality)   = {res['theta']:.2f}")
         typer.echo(f"  z (weight)        = {res['z_weight']:.2f}")

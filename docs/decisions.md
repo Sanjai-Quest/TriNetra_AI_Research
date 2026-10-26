@@ -23,3 +23,14 @@ This document logs key binding decisions made during the execution of the resear
 - **Date:** 2026-10-26
 - **Context:** Evaluation of potential multimodal extension to Baseline B4.
 - **Decision:** As specified in protocol v2.6, Baseline B4 is evaluated as a structured text judge over the 4 checkpoint observation records. Multimodal visual reasoning is benchmarked natively through TriNetra-Link's visual reconciler and homography matching.
+
+## Decision D-05: Gate G-3 and Gate G-4 Set to PENDING Pending Human Physical Execution
+- **Date:** 2026-10-26
+- **Context:** Audit of Gate G-3 (10-journey physical pilot) and Gate G-4 (scale characterisation $\ge 3$ loads $\times 30$ readings).
+- **Decision:** Gates G-3 and G-4 are formally set to **PENDING**. A study gate requiring physical activity can only pass when a human operator physically records that activity. Programmatic simulations or mock test fixtures cannot satisfy physical study gates.
+
+## Decision D-06: Staging Assignment & Truth Manifest Superseded by make_staging_kit.py
+- **Date:** 2026-10-26
+- **Context:** Verification of physical staging assignment and truth manifest commitments.
+- **Decision:** The staging assignment and truth manifest will be REGENERATED with `scripts/make_staging_kit.py` (incorporating layered security seals and weight-matched scenario cells) BEFORE any physical parcel staging occurs. The current pre-generated manifest is formally superseded; no physical journey has been staged under it.
+

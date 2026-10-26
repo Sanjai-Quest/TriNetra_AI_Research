@@ -39,13 +39,15 @@ def reconcile_weights(
     obs_current: CheckpointObservation,
     z: float = 3.0,
     scales_file_path: Optional[Path | str] = None,
+    cumulative_tare_delta_g: float = 0.0,
 ) -> Tuple[bool, float, float]:
     """
     Evaluate weight anomaly condition:
-        |w_b - w_a| > z * sqrt(sigma_a^2 + sigma_b^2) + delta_a + delta_b
+        |w_b - w_a - tare_adj| > z * sqrt(sigma_a^2 + sigma_b^2) + delta_a + delta_b
 
     Tare adjustments:
-        If permitted_packaging_change is True, tare_delta_g is subtracted.
+        If cumulative_tare_delta_g != 0.0, it is applied directly to net weight change.
+        Otherwise, point-in-time tare_delta_g is subtracted for permitted packaging changes.
 
     Returns:
         (is_anomaly, observed_delta_g, threshold_bound_g)
@@ -57,10 +59,12 @@ def reconcile_weights(
     w_b_raw = float(float(sorted(obs_current.weights_g)[len(obs_current.weights_g) // 2]))
 
     # Adjust for tare modifications if logged as legitimate packaging operations
-    w_a_adj = w_a_raw - (obs_baseline.tare_delta_g if obs_baseline.permitted_packaging_change else 0.0)
-    w_b_adj = w_b_raw - (obs_current.tare_delta_g if obs_current.permitted_packaging_change else 0.0)
-
-    delta_w = abs(w_b_adj - w_a_adj)
+    if cumulative_tare_delta_g != 0.0:
+        delta_w = abs(w_b_raw - w_a_raw - cumulative_tare_delta_g)
+    else:
+        w_a_adj = w_a_raw - (obs_baseline.tare_delta_g if obs_baseline.permitted_packaging_change else 0.0)
+        w_b_adj = w_b_raw - (obs_current.tare_delta_g if obs_current.permitted_packaging_change else 0.0)
+        delta_w = abs(w_b_adj - w_a_adj)
 
     sigma_a, drift_a = load_scale_parameters(obs_baseline.scale_id, scales_file_path)
     sigma_b, drift_b = load_scale_parameters(obs_current.scale_id, scales_file_path)

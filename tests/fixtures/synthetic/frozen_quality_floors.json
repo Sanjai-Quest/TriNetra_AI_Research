@@ -1,0 +1,10 @@
+{
+  "synthetic": true,
+  "provenance": "synthetic_test_fixture",
+  "checkpoint_pass_rate": 1.0,
+  "floors": {
+    "q_scale_floor": 0.7,
+    "q_image_floor": 0.7,
+    "q_temporal_floor": 0.7
+  }
+}

@@ -509,7 +509,12 @@
       const c = document.getElementById('timelineContainer');
       c.innerHTML = '';
 
-      const locations = ["Origin Hub", "Carrier Transit", "Doorstep Pickup", "Return Hub"];
+      const cpNames = {
+        1: "CP1 Seller dispatch",
+        2: "CP2 Delivery / OBD",
+        3: "CP3 Return pickup",
+        4: "CP4 Warehouse intake"
+      };
 
       checkpoints.forEach((cp, idx) => {
         const qScore = cp.quality_score !== undefined ? cp.quality_score : 1.0;
@@ -517,11 +522,13 @@
         if (qScore < 0.70) qClass = "q-bad";
         else if (qScore < 0.85) qClass = "q-warn";
 
+        const titleText = cp.cp_name || cpNames[cp.cp_index] || `CP${cp.cp_index}`;
+
         const card = document.createElement('div');
         card.className = 'cp-card';
         card.innerHTML = `
           <div class="cp-header">
-            <span class="cp-title">CP${cp.cp_index}: ${locations[idx] || "Checkpoint"}</span>
+            <span class="cp-title">${titleText}</span>
             <span class="q-score ${qClass}">q=${qScore.toFixed(2)}</span>
           </div>
           <div class="metric-row">

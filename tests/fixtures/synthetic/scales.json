@@ -1,0 +1,14 @@
+{
+  "synthetic": true,
+  "provenance": "synthetic_test_fixture",
+  "scales": {
+    "SCALE_STD": {
+      "sigma_g": 0.03,
+      "delta_g": 0.05
+    },
+    "SCALE_PILOT_01": {
+      "sigma_g": 0.03,
+      "delta_g": 0.05
+    }
+  }
+}

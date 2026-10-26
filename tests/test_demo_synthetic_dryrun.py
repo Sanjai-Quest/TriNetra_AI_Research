@@ -114,6 +114,7 @@ def test_evaluator_strictly_refuses_synthetic_data_without_flag(synthetic_datase
     assert "REFUSAL TO EXECUTE ON SYNTHETIC DEMO DATA" in str(exc_info.value)
 
 
+@pytest.mark.slow
 def test_evaluator_watermarks_when_allowed(synthetic_dataset, tmp_path):
     """When allow_synthetic_dry_run=True, execution succeeds and watermarks all outputs."""
     out_dir = tmp_path / "synthetic_run"

@@ -35,6 +35,7 @@ def predict_trinetra_link(
     z_weight: float = 3.0,
     visual_threshold: float = 0.25,
     scales_config: Optional[Dict[str, Any]] = None,
+    scales_path: Optional[Path | str] = None,
     disable_quality_gate: bool = False,
     disable_visual: bool = False,
     fixed_weight_threshold: Optional[float] = None,
@@ -98,35 +99,24 @@ def predict_trinetra_link(
         qr = q_reports[k]
 
         # Weight test
+        tare_delta = sum(
+            cp.tare_delta_g
+            for cp in journey.checkpoints
+            if cp.cp_index <= k and cp.permitted_packaging_change
+        )
         if fixed_weight_threshold is not None:
-            tare_k = sum(
-                cp.tare_delta_g
-                for cp in journey.checkpoints
-                if cp.cp_index <= k and cp.permitted_packaging_change
-            )
             w1 = float(np.mean(cp1.weights_g)) if cp1.weights_g else 0.0
             wk = float(np.mean(cp_k.weights_g)) if cp_k.weights_g else 0.0
-            weight_diff = abs(wk - w1 - tare_k)
+            weight_diff = abs(wk - w1 - tare_delta)
             weight_anom = weight_diff > fixed_weight_threshold
             delta_w = weight_diff
         else:
-            # Standard scale-calibrated weight test
-            scale_sigma = 0.03
-            scale_delta = 0.05
-            if scales_config and "scales" in scales_config:
-                sc_info = scales_config["scales"].get(cp_k.scale_id, {})
-                scale_sigma = sc_info.get("sigma_g", 0.03)
-                scale_delta = sc_info.get("delta_g", 0.05)
-
-            tare_delta = sum(
-                cp.tare_delta_g
-                for cp in journey.checkpoints
-                if cp.cp_index <= k and cp.permitted_packaging_change
-            )
             weight_anom, delta_w, _ = reconcile_weights(
                 obs_baseline=cp1,
                 obs_current=cp_k,
                 z=z_weight,
+                scales_file_path=scales_path,
+                cumulative_tare_delta_g=tare_delta,
             )
 
         # Identity test

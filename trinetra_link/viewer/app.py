@@ -230,11 +230,18 @@ def create_viewer_app(
             })
 
         # 5. Format Checkpoints Evidence
+        cp_names = {
+            1: "CP1 Seller dispatch",
+            2: "CP2 Delivery / OBD",
+            3: "CP3 Return pickup",
+            4: "CP4 Warehouse intake",
+        }
         cp_details = []
         for cp in sorted(journey.checkpoints, key=lambda x: x.cp_index):
             qr = q_reports.get(cp.cp_index)
             cp_details.append({
                 "cp_index": cp.cp_index,
+                "cp_name": cp_names.get(cp.cp_index, f"CP{cp.cp_index}"),
                 "timestamp_utc": str(cp.ts_utc),
                 "device_id": cp.device_id,
                 "operator_id": cp.operator_id,

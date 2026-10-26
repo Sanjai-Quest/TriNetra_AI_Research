@@ -12,8 +12,8 @@
 |---|---|---|---|
 | **Gate G-1** | Protocol Amendment v2.6 committed and tagged `v2.6.0-amendment` | **PASSED** | Git tag `v2.6.0-amendment`, commit `7e4873c` |
 | **Gate G-2** | Truth-ledger commitment manifest for 120 journeys (salted SHA-256) committed with determinability rule hash | **PASSED** | `research/truth_manifest_v2.6.json` (SHA-256: `64-char committed`) |
-| **Gate G-3** | 10-journey pilot completed end-to-end; app, scale & SOP verified; quality floors frozen | **PASSED** | `data/derived/frozen_quality_floors.json` (10/10 pilot journeys passed) |
-| **Gate G-4** | Scale characterisation completed ($\ge 3$ loads $\times 30$ readings) and `scales.json` committed | **PASSED** | `data/derived/scales.json` ($\sigma = 0.0300$ g, $\delta = 0.0500$ g) |
+| **Gate G-3** | 10-journey pilot completed end-to-end; app, scale & SOP verified; quality floors frozen | **PENDING** | Awaiting physical pilot staging and capture sheets recorded by human operator |
+| **Gate G-4** | Scale characterisation completed ($\ge 3$ loads $\times 30$ readings) and `scales.json` committed | **PENDING** | Awaiting physical scale readings ($\ge 3$ loads $\times 30$ readings) recorded by human operator |
 
 ---
 

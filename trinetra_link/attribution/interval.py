@@ -32,7 +32,7 @@ def attribute_interval_algorithm_1(
     if 1 not in T:
         return Attribution(
             journey_code=journey_code,
-            label="ABSTAIN_DEGRADED",
+            label="ATTR_ABSTAIN_DEGRADED",
             interval=None,
             trusted_set=trusted_sorted,
             per_modality_evidence={"q_k": q_k, "z_k": z_k},
@@ -47,7 +47,7 @@ def attribute_interval_algorithm_1(
         if k_max in T:
             return Attribution(
                 journey_code=journey_code,
-                label="LEGITIMATE",
+                label="ATTR_CONFIRMED_LEGITIMATE",
                 interval=[1, k_max],
                 trusted_set=trusted_sorted,
                 per_modality_evidence={"q_k": q_k, "z_k": z_k},
@@ -56,7 +56,7 @@ def attribute_interval_algorithm_1(
         else:
             return Attribution(
                 journey_code=journey_code,
-                label="ABSTAIN_DEGRADED",
+                label="ATTR_ABSTAIN_DEGRADED",
                 interval=None,
                 trusted_set=trusted_sorted,
                 per_modality_evidence={"q_k": q_k, "z_k": z_k},
@@ -73,7 +73,7 @@ def attribute_interval_algorithm_1(
     if degraded_intermediate:
         return Attribution(
             journey_code=journey_code,
-            label="ABSTAIN_DEGRADED",
+            label="ATTR_ABSTAIN_DEGRADED",
             interval=[a, b],
             trusted_set=trusted_sorted,
             per_modality_evidence={"q_k": q_k, "z_k": z_k, "degraded_in_interval": degraded_intermediate},
@@ -82,7 +82,7 @@ def attribute_interval_algorithm_1(
 
     # 7. Exact adjacent stage resolution
     if b == a + 1:
-        stage_label = f"STAGE({a})"
+        stage_label = f"ATTR_STAGE({a})"
         return Attribution(
             journey_code=journey_code,
             label=stage_label,
@@ -95,7 +95,7 @@ def attribute_interval_algorithm_1(
     # 8. Non-adjacent interval where checkpoints were trusted but state was ambiguous
     return Attribution(
         journey_code=journey_code,
-        label="ABSTAIN_INDISTINGUISHABLE",
+        label="ATTR_ABSTAIN_INDISTINGUISHABLE",
         interval=[a, b],
         trusted_set=trusted_sorted,
         per_modality_evidence={"q_k": q_k, "z_k": z_k},

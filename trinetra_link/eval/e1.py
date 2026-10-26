@@ -213,6 +213,32 @@ def evaluate_e1(
         try:
             with open(sc_path, "r", encoding="utf-8") as fp:
                 scales_config = json.load(fp)
+                if not allow_synthetic_dry_run and not is_synthetic:
+                    if scales_config.get("synthetic") is True or "synthetic" in str(scales_config.get("provenance", "")).lower():
+                        raise RuntimeError(
+                            f"REFUSAL TO EXECUTE ON REAL DATA:\n"
+                            f"Scale calibration parameters at '{sc_path}' have synthetic provenance.\n"
+                            f"Real evaluations refuse synthetic scale parameters unless '--allow-synthetic-dry-run' is enabled."
+                        )
+        except RuntimeError:
+            raise
+        except Exception:
+            pass
+
+    # Check frozen quality floors provenance
+    floors_path = DERIVED_DATA_DIR / "frozen_quality_floors.json"
+    if floors_path.exists() and not allow_synthetic_dry_run and not is_synthetic:
+        try:
+            with open(floors_path, "r", encoding="utf-8") as fp:
+                fl_data = json.load(fp)
+                if fl_data.get("synthetic") is True or "synthetic" in str(fl_data.get("provenance", "")).lower():
+                    raise RuntimeError(
+                        f"REFUSAL TO EXECUTE ON REAL DATA:\n"
+                        f"Quality floors at '{floors_path}' have synthetic provenance.\n"
+                        f"Real evaluations refuse synthetic quality floors unless '--allow-synthetic-dry-run' is enabled."
+                    )
+        except RuntimeError:
+            raise
         except Exception:
             pass
 
@@ -247,8 +273,8 @@ def evaluate_e1(
 
     # 4. Method Evaluators
     methods: Dict[str, Callable[[Journey], Any]] = {
-        "TriNetra-Link (Alg 1)": lambda j: predict_trinetra_link(j, mode="algorithm1", scales_config=scales_config),
-        "TriNetra-Link (Bayes)": lambda j: predict_trinetra_link(j, mode="bayes", scales_config=scales_config),
+        "TriNetra-Link (Alg 1)": lambda j: predict_trinetra_link(j, mode="algorithm1", scales_config=scales_config, scales_path=sc_path),
+        "TriNetra-Link (Bayes)": lambda j: predict_trinetra_link(j, mode="bayes", scales_config=scales_config, scales_path=sc_path),
         "B1 (CP4-only)": predict_b1_cp4,
         "B2 (Endpoints CP1+CP4)": predict_b2_endpoints,
         "B3 (Detection=Origin)": predict_b3_unlinked,
