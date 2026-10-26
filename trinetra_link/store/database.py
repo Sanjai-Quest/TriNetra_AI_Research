@@ -69,6 +69,20 @@ class Store:
                 metadata=json.loads(rec.metadata_json),
             )
 
+    def list_journeys(self) -> List[Journey]:
+        with Session(self.engine) as session:
+            records = session.exec(select(JourneyRecord)).all()
+            return [
+                Journey(
+                    journey_code=r.journey_code,
+                    status=r.status,
+                    created_at=r.created_at,
+                    checkpoints=self.list_checkpoints(r.journey_code),
+                    metadata=json.loads(r.metadata_json) if r.metadata_json else {},
+                )
+                for r in records
+            ]
+
     def insert_checkpoint(self, cp: CheckpointObservation) -> None:
         with Session(self.engine) as session:
             # Checkpoint index must not already exist for this journey

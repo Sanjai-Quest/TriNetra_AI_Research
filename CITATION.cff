@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this software, algorithm, or dataset in your research, please cite it as below."
+authors:
+  - family-names: "TriNetra Research Initiative"
+    given-names: "Core Team"
+    affiliation: "TriNetra Open Science Project"
+title: "TriNetra-Link: Deterministic Multimodal Chain-of-Custody Attribution Under Physical Degradation"
+version: 2.6.0
+date-released: 2026-10-26
+url: "https://github.com/Sanjai-Quest/TriNetra_AI_Research"
+keywords:
+  - supply chain security
+  - chain-of-custody
+  - physical tamper detection
+  - multimodal sensor fusion
+  - selective abstention
+  - audit integrity
+license: "MIT"
+abstract: >-
+  TriNetra-Link is an algorithm and physical benchmark dataset for attributing
+  custodial discrepancy stages in multi-transfer supply chains. Using a metadata-only
+  quality gate, multimodal physical reconciliation (weight, identity, planar homography visual),
+  and causal interval isolation (Algorithm 1), TriNetra-Link isolates the exact transition interval
+  of physical tampering while appropriately abstaining when evidence is degraded or indistinguishable.

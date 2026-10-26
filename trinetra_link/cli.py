@@ -103,6 +103,21 @@ def serve_cmd(
     uvicorn.run(fastapi_app, host=host, port=port)
 
 
+@app.command("viewer")
+def viewer_cmd(
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Bind host address"),
+    port: int = typer.Option(8501, "--port", "-p", help="Port number"),
+    db_path: Optional[str] = typer.Option(None, "--db", help="Path to SQLite store"),
+) -> None:
+    """Launch the blinded read-only TriNetra-Link Research Viewer."""
+    import uvicorn
+    from trinetra_link.viewer.app import create_viewer_app
+
+    viewer_app = create_viewer_app(db_path=db_path)
+    typer.echo(f"Starting TriNetra-Link Research Viewer on http://{host}:{port} ...")
+    uvicorn.run(viewer_app, host=host, port=port)
+
+
 @app.command("split")
 def split_cmd(
     assignment_path: Optional[str] = typer.Option(None, "--assignment-path", "-a", help="Path to staging assignment CSV"),

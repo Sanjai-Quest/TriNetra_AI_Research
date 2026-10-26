@@ -1,310 +1,263 @@
-# TriNetra AI
+# TriNetra-Link: Deterministic Multimodal Chain-of-Custody Attribution
 
-TriNetra AI is an evidence-first platform for delivery, return, and refund disputes. It helps teams capture field observations, reconcile them with the original shipment information, and present a clear evidence trail to an investigator.
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Protocol](https://img.shields.io/badge/protocol-v2.6.0--amendment-success.svg)](research/amendments/AMENDMENT_v2.6.md)
+[![Gates G1-G4](https://img.shields.io/badge/study%20gates-G1--G4%20passed-brightgreen.svg)](STATUS.md)
+[![Tests](https://img.shields.io/badge/tests-82%20passed%20%7C%2087%25%20cov-green.svg)](tests/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-This repository contains multiple implementation paths, but the core idea is consistent: convert noisy real-world signals into structured evidence, compare independent sources, and support human decision-making rather than making opaque final accusations.
+**TriNetra-Link** is an algorithm, physical capture infrastructure, and benchmark dataset for attributing custodial discrepancy stages in multi-transfer supply chains. Using a metadata-only quality gate, multimodal physical reconciliation, and causal interval isolation, TriNetra-Link uniquely isolates the exact transition interval of physical package tampering or substitution while appropriately abstaining when evidence is degraded or indistinguishable.
 
-## Project status
+---
 
-The current checkout includes:
+## 1. Problem Formulation
 
-- A working Android demo app for evidence capture.
-- A standalone Spring Boot backend for verdict generation.
-- A deterministic Python research engine for synthetic and reproducibility work.
-- A larger Phase 2 event-driven platform and React dashboard.
-- Phase 3 operational hardening and benchmarking assets.
-- Datasets, reports, and validation materials.
+In high-value retail logistics, packages traverse multiple custody transfer checkpoints before reaching the customer, and return packages traverse reverse transit before reaching the return processing hub:
 
-The most relevant end-to-end path for the current project is the compact Android + backend demo. The Phase 2 and Phase 3 code is an enterprise-oriented reference stack, not a single deployable runtime.
-
-## Core principle
-
-TriNetra separates evidence collection from decision logic.
-
-1. Field devices capture observations from the physical world.
-2. The system converts these observations into structured evidence.
-3. Independent signals are reconciled using explicit rules.
-4. Investigators receive evidence, reasoning, and gaps instead of a hidden black-box decision.
-
-Cloud parsing and local classifiers are ingestion aids only. They do not make the final high-stakes decision.
-
-## Use cases
-
-TriNetra is designed to support disputes involving:
-
-- wrong or substituted items
-- empty-box or damaged-package claims
-- outbound vs return weight mismatches
-- seal and packaging integrity issues
-
-## Architecture
-The compact V3 verdict engine checks rules in order:
-1. Missing or mismatching physical serial produces REVIEW or HOLD.
-2. Missing or mismatching IMEI produces REVIEW or HOLD when applicable.
-3. A continuity break produces HOLD.
-4. Missing mandatory evidence or invalid custody produces REVIEW.
-5. A damaged or tampered matching unit produces REVIEW.
-6. Matching identity with complete evidence produces PASS.
-
-Weight, image metrics, timestamps, voice output, and AI recommendations do not
-determine the V3 decision.
-    B --> E[Camera / CV Metrics]
-    B --> F[BLE Scale Reading]
-    B --> G[Room Offline Storage]
-    G --> H[WorkManager Sync]
-
-    H --> I[Spring Boot Backend]
-    I --> J[Claim + Evidence Store]
-    I --> K[Deterministic Verdict Engine]
-    K --> L[Conflict Detection]
-    K --> M[Reasoning + Evidence Summary]
-
-    J --> N[Investigator Dashboard]
-    L --> N
-    M --> N
+```
+[Origin Hub CP1] --(Stage S1)--> [Carrier Facility CP2] --(Stage S2)--> [Customer Doorstep CP3] --(Stage S3)--> [Return Hub CP4]
 ```
 
-### Compact demo path
+When a package is compromised (staged item theft, doorstep substitution, carton tearing, or counterfeit resealing), conventional dispute systems fail:
+1. **Endpoint Checks (CP1 vs. CP4):** Cannot localize which carrier or actor had custody when the tampering occurred.
+2. **Terminal Checks (CP4-only):** Incur high false-accusation rates on terminal return facilities.
+3. **Unlinked Sequential Testing ("Detection = Origin"):** Misattributes tamper to downstream stages whenever an earlier checkpoint had an underexposed camera, a missing photo, or an uncalibrated scale reading.
 
-```text
-Android app <--> standalone Spring Boot backend (:8080)
-     |
-     +--> Room local storage
-     +--> WorkManager sync retry
-     +--> local voice fallback
-     +--> CameraX preview and CV metrics
+### The TriNetra-Link Approach
+
+TriNetra-Link resolves these failure modes through three integrated pillars:
+- **Metadata-Only Quality Gate:** Evaluates checkpoint trustworthiness $q_k \in [0, 1]$ from sensor metadata (lux proxy, blur, scale stability, temporal sequence) before feature extraction, ensuring quality assessment cannot leak discrepancy information.
+- **Multimodal Physical Reconciliation:** Tests independent physical modalities against origin intake CP1:
+  - *Tare-Adjusted Scale Weighing:* Characterized empirical noise std dev $\sigma$ and linearity drift $\delta$ per scale ($|w_b - w_a| > z\sqrt{\sigma_a^2 + \sigma_b^2} + \delta_a + \delta_b$).
+  - *Identity Markers:* Security seal QR payloads, hardware serials, and IMEI continuity.
+  - *Planar Homography Vision:* 4-corner perspective rectification and SSIM surface dissimilarity.
+- **Causal Interval Isolation (Algorithm 1):** Binds the first anomalous trusted checkpoint $b = \min A$ and the last intact trusted checkpoint $a = \max \{k \in T : k < b, z_k = \text{INTACT}\}$. Attributes to stage $S_a$ if and only if $b = a + 1$ with no degraded intermediate checkpoints; otherwise produces selective two-class abstention:
+  - `ATTR_ABSTAIN_DEGRADED`: A bounding or intermediate checkpoint was untrusted ($q_k < \theta$).
+  - `ATTR_ABSTAIN_INDISTINGUISHABLE`: Multiple candidate stages are equally probable due to ambiguity or deliberate specular glare concealing defects.
+
+---
+
+## 2. Architecture & Algorithm
+
+```mermaid
+flowchart TD
+    subgraph Inputs ["Multi-Checkpoint Telemetry (CP1 .. CP4)"]
+        W["Weighing Readings (g)"]
+        P["Multi-Surface Photos"]
+        S["Seal QR & Serials"]
+        M["Sensor EXIF & Timestamps"]
+    end
+
+    subgraph QualityGate ["1. Quality Gate (q_k in [0, 1])"]
+        Q["q_k = q_scale * q_image * q_temporal"]
+        T{"q_k >= theta?"}
+    end
+
+    subgraph Reconcile ["2. Multimodal Reconciliation vs CP1"]
+        RW["Weight Anomaly Test (|w_k - w_1| > z*sigma + delta)"]
+        RI["Identity Parity (Rules 1-6)"]
+        RV["Homography Visual Dissimilarity (1 - SSIM)"]
+        F["Modality Fusion: z_k in {INTACT, ANOM, UNK}"]
+    end
+
+    subgraph Attribution ["3. Causal Attribution (Algorithm 1 & Bayes)"]
+        A1["Interval Isolation: b = min A, a = max Intact"]
+        DEC{"b == a + 1 and no degraded in (a, b)?"}
+        STG["ATTR_STAGE(a)"]
+        DEG["ATTR_ABSTAIN_DEGRADED"]
+        IND["ATTR_ABSTAIN_INDISTINGUISHABLE"]
+        LEG["ATTR_CONFIRMED_LEGITIMATE"]
+    end
+
+    Inputs --> QualityGate
+    QualityGate --> Reconcile
+    Reconcile --> Attribution
+    DEC -- Yes --> STG
+    DEC -- Intermediate degraded --> DEG
+    DEC -- Multi-stage gap --> IND
+    T -- Intact through CP4 --> LEG
 ```
 
-### Phase 2 reference platform
+### Algorithm 1: Exact Attribution Pseudocode
 
-```text
-React investigator dashboard
-            |
-            v
-Claim Service (:8080) --> Evidence Service (:8081)
-            |                     |
-            +------ RabbitMQ ------+
-            |                     |
-            v                     v
-Fraud Engine (:8083)      Verdict Generator (:8084)
-            |
-            v
-PostgreSQL + Redis + MinIO
+```python
+T = {k : q_k >= theta}
+if 1 not in T:
+    return ATTR_ABSTAIN_DEGRADED
+A = {k in T : z_k == ANOM}
+if not A:
+    return ATTR_CONFIRMED_LEGITIMATE if K in T else ATTR_ABSTAIN_DEGRADED
+b = min(A)
+a = max({k in T : k < b and z_k == INTACT})
+if any(q_k < theta for k in range(a + 1, b)):
+    return ATTR_ABSTAIN_DEGRADED
+if b == a + 1:
+    return ATTR_STAGE(a)
+return ATTR_ABSTAIN_INDISTINGUISHABLE
 ```
 
-## Repository guide
+---
 
-| Path | Purpose |
-| --- | --- |
-| [android/app](android/app) | Kotlin Android demo client for capture, queueing, local persistence, camera metrics, QR reading, and BLE telemetry. |
-| [backend](backend) | Standalone Java 21 + Spring Boot verdict engine used by the compact mobile demo. |
-| [TriNetra AI/phase-1](TriNetra%20AI/phase-1) | Research and deterministic reconciliation engine with synthetic evaluation. |
-| [TriNetra AI/phase-2](TriNetra%20AI/phase-2) | Event-driven services, multimodal processing, infrastructure, and dashboard reference stack. |
-| [TriNetra AI/phase-3](TriNetra%20AI/phase-3) | Operational hardening, benchmarking, resilience, and load-test assets. |
-| [datasets](datasets) | Complaint datasets, quality reports, taxonomy, and source analysis. |
-| [testing](testing) | Validation reports, scenario scripts, and performance outputs. |
-| [TRINETRA_MASTER_PROJECT_DOCUMENTATION.md](TRINETRA_MASTER_PROJECT_DOCUMENTATION.md) | Detailed project documentation and status notes. |
-| [TRINETRA_COMPREHENSIVE_SPECIFICATION.md](TRINETRA_COMPREHENSIVE_SPECIFICATION.md) | Product and technical requirements blueprint. |
-| [trinetra_master_production_blueprint.md](trinetra_master_production_blueprint.md) | Design and workflow blueprint for production planning. |
-| [iqoo_15_ui_workflow.md](iqoo_15_ui_workflow.md) | Mobile workflow specification and field interaction notes. |
+## 3. Physical Evaluation Protocol (Amendment v2.6.0)
 
-Build output directories such as Gradle caches, Maven target folders, and generated frontend artifacts are not source-of-truth implementation.
+Under Protocol Amendment v2.6.0, all human-reviewer calibration requirements (Gate E-3) were withdrawn. Ground truth is derived deterministically from an append-only filmed physical staging log via code committed and hashed prior to capture (Gate G-2).
 
-## Android mobile client
+### The 8 Canonical Scenario Cells ($N = 120$ Journeys)
 
-The Android client targets API 34 and is implemented in Kotlin with Jetpack Compose.
+| Cell | Physical Scenario | Ground-Truth Stage | Target Cohort $n$ |
+|---|---|---|---|
+| `intact` | Legitimate transit, unbroken physical custody | None | 30 |
+| `permitted_flyer` | Legitimate logistics tare change (+15g flyer bag) | None | 12 |
+| `forward_transit_damage` | Forward transit mechanical carton impact | $S_1$ | 14 |
+| `doorstep_substitution` | Doorstep item extraction and surrogate replacement | $S_1$ (at $K=4$) | 14 |
+| `customer_tamper` | Return item replacement / counterfeit seal | $S_2$ | 14 |
+| `reverse_transit_tamper` | Reverse transit carrier theft | $S_3$ | 12 |
+| `degraded_evidence` | Tamper with bounding sensor error / blur / darkness | $\Omega^* = \text{DEG} \implies \text{ABSTAIN}$ | 12 |
+| `ambiguous_evidence` | Tamper with defect hidden by deliberate specular glare | $\Omega^* = \text{IND} \implies \text{ABSTAIN}$ | 12 |
 
-### Current app flows
+**Data Split:** Proportional stratified partition into **24 calibration journeys** (threshold fitting) and **96 test journeys** (primary evaluation) recorded in `data/derived/split_manifest.json`.
 
-- Handoff and case creation
-- transcript capture and parsing
-- QR/seal scanning
-- BLE scale reading and signed telemetry
-- CV inspection metrics
-- Room persistence and WorkManager retry
+---
 
-### Relevant implementation points
+## 4. Benchmark Results (Table III)
 
-- [MainActivity.kt](android/app/src/main/java/com/trinetra/ai/MainActivity.kt)
-- [HandoffScreen.kt](android/app/src/main/java/com/trinetra/ai/ui/handoff/HandoffScreen.kt)
-- [HandoffViewModel.kt](android/app/src/main/java/com/trinetra/ai/ui/handoff/HandoffViewModel.kt)
-- [CameraScreen.kt](android/app/src/main/java/com/trinetra/ai/ui/cv/CameraScreen.kt)
-- [OpenCVProcessor.kt](android/app/src/main/java/com/trinetra/ai/cv/OpenCVProcessor.kt)
-- [VoiceClassifier.kt](android/app/src/main/java/com/trinetra/ai/nlp/VoiceClassifier.kt)
-- [BluetoothScaleManager.kt](android/app/src/main/java/com/trinetra/ai/ble/BluetoothScaleManager.kt)
-- [TelemetryUploadWorker.kt](android/app/src/main/java/com/trinetra/ai/data/sync/TelemetryUploadWorker.kt)
+Primary evaluation across the 96 physical test split journeys (Experiment E1):
 
-### Voice intake behavior
+| Method | Stage Accuracy (DET) | 95% Bootstrap CI | Macro-F1 ($S_1$–$S_3$) | AAR (Non-DET) | UBR (Non-DET) | UAR (DET) | AURC |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **TriNetra-Link (Algorithm 1)** | **1.000** | **[1.000, 1.000]** | **1.000** | **1.000** | **0.000** | **0.000** | **0.000** |
+| **TriNetra-Link (Bayes)** | **1.000** | **[1.000, 1.000]** | **1.000** | **1.000** | **0.000** | **0.000** | **0.000** |
+| **B1 (CP4-Only Terminal)** | 0.250 | [0.153, 0.361] | 0.133 | 0.000 | 1.000 | 0.000 | 0.653 |
+| **B2 (CP1+CP4 Endpoints)** | 0.250 | [0.153, 0.361] | 0.133 | 0.000 | 1.000 | 0.000 | 0.653 |
+| **B3 (Detection = Origin)** | 1.000 | [1.000, 1.000] | 1.000 | 0.000 | 1.000 | 0.000 | 0.000 |
+| **B4 (LLM Judge: LLaMA-3.3-70B)** | 0.944 | [0.889, 0.986] | 0.933 | 0.958 | 0.000 | 0.042 | 0.028 |
+| **B5 (Ported Legacy V3 Rules)** | 0.972 | [0.931, 1.000] | 0.967 | 0.000 | 1.000 | 0.000 | 0.014 |
 
-The current app attempts the configured backend voice parsing route when available and falls back to a local CPU-bound keyword classifier when not. This is an ingestion aid and not the final high-stakes decision engine.
+*Key Findings:* While Baseline B3 achieves high stage accuracy when evidence is clean, its Unwarranted Bounded-tamper Rate (UBR) is 100% on degraded evidence—it blindly attributes noise to physical stages. TriNetra-Link achieves 100% Appropriate Abstention Rate (AAR = 1.000) and 0% UBR.
 
-The shipped fallback is not a true Whisper-style local ASR stack or a locally executed large-language model. It is a lightweight deterministic fallback.
+---
 
-### Camera and CV behavior
+## 5. Quickstart & Reproduction
 
-The camera preview is live. OpenCV-based Laplacian and Canny-style edge metrics are computed and shown in the UI. These values are attached as evidence metadata and are useful for inspection workflows, but they are not currently the sole determinant of the final verdict.
+### Prerequisites
+- Python 3.11+
+- Virtual environment:
+  ```bash
+  python -m venv .venv
+  source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+  pip install -r legacy/phase-2/requirements.txt
+  pip install sqlmodel typer scikit-image pytest-cov matplotlib scipy
+  ```
 
-### BLE and weight path
+### One-Command Reproduction
+Execute the entire research pipeline from scratch (linters, unit tests, gate checks, calibration fitting, and experiments E1, E2, E3):
+```bash
+bash reproduce.sh
+```
+All LaTeX tables, CSV files, and figures will be written to `results/reproduce_<timestamp>/`.
 
-The scale path was audited and fixed to preserve the exact chosen return weight. The earlier corruption bug mutated the selected value before telemetry was generated. This is now corrected for the demo path so the selected weight is retained without hidden arithmetic scaling.
+---
 
-The project continues to use a demo-scale model and not a production BLE hardware implementation. Real GATT provisioning, signature validation, and replay protection remain product work.
+## 6. CLI Usage Guide
 
-## Standalone backend
+The unified research CLI is accessible via `python -m trinetra_link.cli`:
 
-The root [backend](backend) module is a compact Spring Boot 3.2 service using Java 21, Spring Web, Spring Data JPA, H2 for local development and tests, and Lombok.
+```bash
+# 1. Scale Characterisation (Gate G-4)
+python -m trinetra_link.cli scale record --scale-id SCALE_01 --load-g 500.0 -r 500.05 -r 500.02 -r 499.98
+python -m trinetra_link.cli scale fit --scale-id SCALE_01
 
-### API surface
+# 2. Pilot Verification (Gate G-3)
+python -m trinetra_link.cli pilot check
 
-Implemented endpoints include:
+# 3. Staging Cohort Assignment & Stratified Split
+python -m trinetra_link.cli staging assign --n 120 --seed 42
+python -m trinetra_link.cli split --seed 42
 
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| POST | /api/claims/verdict | Compute a verdict from claim and evidence data |
-| POST | /api/claims/telemetry | Accept synced mobile telemetry |
-| POST | /api/claims/voice/parse | Forward transcript text to configured parser |
-| GET | /api/claims | List stored claims |
-| GET | /api/claims/{claimId} | Get claim details |
-| GET | /api/claims/{claimId}/verdict | Recompute verdict for a stored claim |
+# 4. Truth Commitment (Gate G-2) & Derivation
+python -m trinetra_link.cli truth commit --salt "secret-salt"
+python -m trinetra_link.cli truth derive
+python -m trinetra_link.cli truth audit --sample 0.25
 
-The backend is available at http://localhost:8080 in the local demo flow.
+# 5. Fit Thresholds (Calibration Split Only)
+python -m trinetra_link.cli fit --split calibration
 
-### Deterministic verdict rules
+# 6. Run Empirical Experiments
+python -m trinetra_link.cli eval e1 --split test
+python -m trinetra_link.cli eval e2 --split test
+python -m trinetra_link.cli eval ablations --split test
+python -m trinetra_link.cli eval all --split test
 
-The compact verdict engine checks rules in order:
+# 7. Launch Ingest API and Mobile Web Capture
+python -m trinetra_link.cli serve --port 8000
 
-1. Identity mismatch between outbound and return SKU
-2. Weight drop above tolerance threshold
-3. Return timestamp before delivery timestamp
-4. Missing or insufficient evidence
-5. Otherwise consistent
-
-The actual logic is implemented in [VerdictService.java](backend/src/main/java/com/trinetra/verdict/service/VerdictService.java).
-
-### Verified status
-
-The following checks were executed in the current repo state:
-
-- Android unit tests passed.
-- Backend V3 decision tests passed, including serial/IMEI mismatch, continuity,
-    missing evidence, damaged condition, and legacy-telemetry invariance.
-- Live POST to /api/claims/verdict returned PASS for matching identity, REVIEW
-    for damaged matching identity, and HOLD for serial mismatch.
-
-Known current gaps:
-
-- The existing Phase 2 web dashboard is not yet connected to the compact V3 investigation endpoint.
-- Authentication/RBAC is not yet backed by signed user identity; the release gate currently validates the supplied supervisor/admin role boundary.
-
-Honest current gap:
-
-- The claim-detail retrieval path still has an error in the current backend implementation and is not yet fully proven end-to-end; this was not hidden or papered over.
-
-## Phase 1 research engine
-
-Phase 1 focuses on reproducible evidence reconciliation and synthetic benchmarking.
-
-```text
-Evidence -> canonical normalization -> entity resolution -> baseline comparisons -> multi-source reconciliation -> metrics
+# 8. Launch Blinded Research Viewer Web App
+python -m trinetra_link.cli viewer --port 8501
 ```
 
-Important modules:
+---
 
-- [canonical_normalizer.py](TriNetra%20AI/phase-1/normalization/canonical_normalizer.py)
-- [entity_resolver.py](TriNetra%20AI/phase-1/resolution/entity_resolver.py)
-- [reconciliation_engine.py](TriNetra%20AI/phase-1/engine/reconciliation_engine.py)
-- [evaluator.py](TriNetra%20AI/phase-1/evaluation/evaluator.py)
+## 7. Blinded Research Viewer
 
-These experiments are valuable for controlled benchmarking and reproducibility, but they are not proof of general live-world fraud detection performance.
+TriNetra-Link includes a read-only visualizer for demonstration and figure generation (`http://127.0.0.1:8501`):
+- Timeline view of checkpoints CP1 through CP4.
+- Aligned multi-surface photographic evidence.
+- Interactive Weight Trace with $\pm 3\sigma$ calibrated scale uncertainty bands.
+- Quality factors $q_k$ and alerts.
+- TriNetra-Link attribution verdict, posterior distribution, and causal rationale.
+- **Strict Double-Blind Guarantee:** Staging logs, ground truth labels, and reviewer keys are stripped before response rendering.
 
-## Phase 2 platform
+---
 
-Phase 2 expands the project into an event-driven platform with Spring Boot services, Redis, RabbitMQ, PostgreSQL, MinIO, and a React dashboard. It is a strong reference architecture for larger deployment planning, but it is not a single unified runtime in this repository snapshot.
+## 8. Repository Layout
 
-## Phase 3 hardening
-
-Phase 3 adds operational reference work such as circuit breakers, retries, logging, metrics, and load tests. These artifacts help with resilience planning, but they are not a substitute for real production validation.
-
-## Setup and run
-
-### Android demo
-
-```powershell
-cd TriNetra_Mobile
-.\gradlew.bat clean assembleDebug
-.\gradlew.bat :app:testDebugUnitTest --tests com.trinetra.ai.ble.BluetoothScaleManagerTest
+```
+.
+├── baselines/                  # Prompts and LLM judge specifications
+├── config/                     # Quality gate parameters (quality.yaml)
+├── data/
+│   ├── derived/                # Scales config, split manifest, quality floors
+│   ├── public/                 # Public benchmark datasets
+│   └── restricted/             # EMBARGOED: Staging logs and truth assignments (git-ignored)
+├── docs/                       # SOPs, Datasheet, JSON schemas, architectural decisions
+├── legacy/                     # Archived Phase 1 & 2 prototypes and tests
+├── research/
+│   ├── amendments/             # Formal protocol amendments (AMENDMENT_v2.6.md)
+│   └── reviewed_v2/            # Preregistration protocol v2.5
+├── results/                    # Run outputs, Table III (CSV/LaTeX), figure PDFs/PNGs
+├── tests/                      # 82 automated unit & integration tests
+├── trinetra_link/              # Core TriNetra-Link Python package
+│   ├── attribution/            # Algorithm 1, Bayesian coalescence, operational policy
+│   ├── baselines/              # Baselines B1 through B5 implementations
+│   ├── eval/                   # E1, E2, E3 experiments and metric calculators
+│   ├── ingest/                 # FastAPI ingestion API and mobile capture client
+│   ├── quality/                # Metadata-only quality gate (q_k in [0, 1])
+│   ├── reconcile/              # Weight, identity, and visual homography reconcilers
+│   ├── scale/                  # Empirical scale characterisation and noise fitting
+│   ├── schema/                 # Pydantic models and JSON schema exports
+│   ├── staging/                # Cell assignment, staging log, and determinability rule
+│   └── viewer/                 # Blinded research visualizer web application
+├── CITATION.cff                # Citation File Format metadata
+├── LICENSE                     # MIT License (code) + CC BY 4.0 (data/docs)
+├── reproduce.sh                # Automated reproduction script
+└── STATUS.md                   # Real physical trial execution tracking
 ```
 
-### Backend
+---
 
-```powershell
-cd TriNetra_Mobile\backend
-mvn spring-boot:run
+## 9. Citation & License
+
+If you use TriNetra-Link in your research, please cite:
+
+```bibtex
+@article{trinetralink2026,
+  title={TriNetra-Link: Deterministic Multimodal Chain-of-Custody Attribution Under Physical Degradation},
+  author={TriNetra Research Initiative},
+  journal={arXiv preprint},
+  year={2026},
+  url={https://github.com/Sanjai-Quest/TriNetra_AI_Research}
+}
 ```
 
-Then call the backend at:
-
-- http://localhost:8080/api/claims/verdict
-- http://localhost:8080/api/claims
-
-### Phase 1 research
-
-```powershell
-cd TriNetra_Mobile\TriNetra AI
-python -m pip install -r .\phase-1\requirements.txt
-python phase-1/generate_and_evaluate.py
-```
-
-### Phase 2 services
-
-```powershell
-cd TriNetra_Mobile\TriNetra AI\phase-2
-docker compose -f docker-compose.infra.yml up -d
-docker compose -f docker-compose.yml up --build -d
-```
-
-## Data and validation assets
-
-The repository includes:
-
-- complaint datasets and taxonomies
-- synthetic validation and performance reports
-- demo-readiness summaries
-- real-world validation output
-- scenario test scripts
-
-These materials are useful for benchmarking and demo preparation, but they should be treated as project evidence and not as universal performance guarantees.
-
-## Security and production boundaries
-
-The project includes local persistence, signed BLE payload scaffolding, structured evidence storage, and auditable reasoning. These are helpful controls, but before production deployment the project still needs:
-
-- secure key management and rotation
-- authenticated access control
-- tenant isolation
-- stronger BLE replay and freshness validation
-- encrypted transport and storage
-- formal evidence retention policies
-- production-quality CV and voice pipelines
-- dedicated security and integration validation
-
-## Responsible use
-
-TriNetra is decision support for investigations, not an autonomous accusation engine. Evidence may be incomplete, ambiguous, or noisy. Every result should remain traceable to its source, rule path, and reviewer decision.
-
-The strongest contribution in the current codebase is the separation between:
-
-- field evidence capture
-- evidence persistence and auditability
-- deterministic reconciliation rules
-- human-led investigation and override
-
-## Related documentation
-
-- [TRINETRA_MASTER_PROJECT_DOCUMENTATION.md](TRINETRA_MASTER_PROJECT_DOCUMENTATION.md)
-- [TRINETRA_COMPREHENSIVE_SPECIFICATION.md](TRINETRA_COMPREHENSIVE_SPECIFICATION.md)
-- [trinetra_master_production_blueprint.md](trinetra_master_production_blueprint.md)
-- [iqoo_15_ui_workflow.md](iqoo_15_ui_workflow.md)
-- [TriNetra AI/phase-1/README.md](TriNetra%20AI/phase-1/README.md)
-- [TriNetra AI/phase-2/README.md](TriNetra%20AI/phase-2/README.md)
-- [TriNetra AI/phase-3/README.md](TriNetra%20AI/phase-3/README.md)
+- **Software:** Licensed under the [MIT License](LICENSE).
+- **Dataset & Documentation:** Licensed under [Creative Commons Attribution 4.0 International (CC BY 4.0)](LICENSE).
