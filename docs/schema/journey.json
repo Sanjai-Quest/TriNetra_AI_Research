@@ -1,0 +1,249 @@
+{
+  "$defs": {
+    "CheckpointObservation": {
+      "description": "Observation recorded at physical checkpoint k in 1..K.",
+      "properties": {
+        "journey_code": {
+          "description": "Unique journey code, e.g. JRN-2026-0001",
+          "title": "Journey Code",
+          "type": "string"
+        },
+        "cp_index": {
+          "description": "Checkpoint sequence index 1..K",
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Cp Index",
+          "type": "integer"
+        },
+        "ts_utc": {
+          "description": "Timestamp of observation in UTC",
+          "format": "date-time",
+          "title": "Ts Utc",
+          "type": "string"
+        },
+        "device_id": {
+          "description": "Capturing device UUID or identifier",
+          "title": "Device Id",
+          "type": "string"
+        },
+        "operator_id": {
+          "description": "Capture operator identifier",
+          "title": "Operator Id",
+          "type": "string"
+        },
+        "weights_g": {
+          "description": "Repeated weight readings in grams (>= 3)",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "title": "Weights G",
+          "type": "array"
+        },
+        "scale_id": {
+          "description": "Identifier of the scale used",
+          "title": "Scale Id",
+          "type": "string"
+        },
+        "scale_status": {
+          "default": "OK",
+          "description": "Status code from scale, e.g. OK, MANUAL, UNSTABLE, ERROR",
+          "title": "Scale Status",
+          "type": "string"
+        },
+        "calibration_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Last calibration date (YYYY-MM-DD)",
+          "title": "Calibration Date"
+        },
+        "images": {
+          "description": "Photographic assets captured at this checkpoint",
+          "items": {
+            "$ref": "#/$defs/ImageRef"
+          },
+          "title": "Images",
+          "type": "array"
+        },
+        "seal_qr": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Decoded payload of the tamper-evident security seal QR",
+          "title": "Seal Qr"
+        },
+        "serial": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Observed serial number",
+          "title": "Serial"
+        },
+        "imei": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Observed IMEI for serialized cellular hardware",
+          "title": "Imei"
+        },
+        "carrier_log": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional custody carrier log notes",
+          "title": "Carrier Log"
+        },
+        "permitted_packaging_change": {
+          "default": false,
+          "description": "Whether legitimate re-boxing or re-taping occurred",
+          "title": "Permitted Packaging Change",
+          "type": "boolean"
+        },
+        "tare_delta_g": {
+          "default": 0.0,
+          "description": "Known tare delta in grams for permitted packaging modifications",
+          "title": "Tare Delta G",
+          "type": "number"
+        },
+        "app_version": {
+          "default": "2.6.0",
+          "description": "Software version used for capture",
+          "title": "App Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "journey_code",
+        "cp_index",
+        "ts_utc",
+        "device_id",
+        "operator_id",
+        "weights_g",
+        "scale_id"
+      ],
+      "title": "CheckpointObservation",
+      "type": "object"
+    },
+    "ImageRef": {
+      "description": "Reference to a captured photographic evidence asset.",
+      "properties": {
+        "side": {
+          "description": "Surface identifier e.g. front, back, top, seal",
+          "title": "Side",
+          "type": "string"
+        },
+        "path": {
+          "description": "Repository-relative or media storage path",
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "SHA-256 digest of the image bytes",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "w": {
+          "description": "Image pixel width",
+          "minimum": 1,
+          "title": "W",
+          "type": "integer"
+        },
+        "h": {
+          "description": "Image pixel height",
+          "minimum": 1,
+          "title": "H",
+          "type": "integer"
+        },
+        "exposure": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "EXIF exposure time in seconds if available",
+          "title": "Exposure"
+        }
+      },
+      "required": [
+        "side",
+        "path",
+        "sha256",
+        "w",
+        "h"
+      ],
+      "title": "ImageRef",
+      "type": "object"
+    }
+  },
+  "description": "Complete multi-checkpoint journey container.",
+  "properties": {
+    "journey_code": {
+      "description": "Canonical journey identifier",
+      "title": "Journey Code",
+      "type": "string"
+    },
+    "status": {
+      "default": "ACTIVE",
+      "description": "Journey status: ACTIVE, COMPLETED, ABSTAINED",
+      "title": "Status",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "checkpoints": {
+      "items": {
+        "$ref": "#/$defs/CheckpointObservation"
+      },
+      "title": "Checkpoints",
+      "type": "array"
+    },
+    "metadata": {
+      "additionalProperties": true,
+      "title": "Metadata",
+      "type": "object"
+    }
+  },
+  "required": [
+    "journey_code"
+  ],
+  "title": "Journey",
+  "type": "object"
+}

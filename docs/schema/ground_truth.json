@@ -1,0 +1,64 @@
+{
+  "description": "Derived physical ground truth (Restricted Data).",
+  "properties": {
+    "journey_code": {
+      "title": "Journey Code",
+      "type": "string"
+    },
+    "expected_label": {
+      "title": "Expected Label",
+      "type": "string"
+    },
+    "determinability": {
+      "description": "OBS_DETERMINABLE, OBS_DEGRADED_INCOMPLETE, OBS_INDISTINGUISHABLE",
+      "title": "Determinability",
+      "type": "string"
+    },
+    "tamper_interval": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tamper Interval"
+    },
+    "salt": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Salt"
+    },
+    "commitment_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Commitment Hash"
+    }
+  },
+  "required": [
+    "journey_code",
+    "expected_label",
+    "determinability"
+  ],
+  "title": "GroundTruth",
+  "type": "object"
+}

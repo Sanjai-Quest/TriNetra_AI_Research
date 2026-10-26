@@ -1,0 +1,66 @@
+{
+  "description": "Multimodal physical reconciliation output vs baseline CP1.",
+  "properties": {
+    "journey_code": {
+      "title": "Journey Code",
+      "type": "string"
+    },
+    "cp_index": {
+      "title": "Cp Index",
+      "type": "integer"
+    },
+    "weight_anomaly": {
+      "default": false,
+      "title": "Weight Anomaly",
+      "type": "boolean"
+    },
+    "weight_delta_g": {
+      "default": 0.0,
+      "title": "Weight Delta G",
+      "type": "number"
+    },
+    "identity_anomaly": {
+      "default": false,
+      "title": "Identity Anomaly",
+      "type": "boolean"
+    },
+    "identity_mismatches": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Identity Mismatches",
+      "type": "array"
+    },
+    "visual_anomaly": {
+      "default": false,
+      "title": "Visual Anomaly",
+      "type": "boolean"
+    },
+    "visual_scores": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Visual Scores",
+      "type": "object"
+    },
+    "fused_state": {
+      "description": "INTACT, ANOM, or UNK",
+      "title": "Fused State",
+      "type": "string"
+    },
+    "trusted_modalities": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Trusted Modalities",
+      "type": "array"
+    }
+  },
+  "required": [
+    "journey_code",
+    "cp_index",
+    "fused_state"
+  ],
+  "title": "ReconcileResult",
+  "type": "object"
+}

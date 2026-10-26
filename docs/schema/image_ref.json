@@ -1,0 +1,54 @@
+{
+  "description": "Reference to a captured photographic evidence asset.",
+  "properties": {
+    "side": {
+      "description": "Surface identifier e.g. front, back, top, seal",
+      "title": "Side",
+      "type": "string"
+    },
+    "path": {
+      "description": "Repository-relative or media storage path",
+      "title": "Path",
+      "type": "string"
+    },
+    "sha256": {
+      "description": "SHA-256 digest of the image bytes",
+      "title": "Sha256",
+      "type": "string"
+    },
+    "w": {
+      "description": "Image pixel width",
+      "minimum": 1,
+      "title": "W",
+      "type": "integer"
+    },
+    "h": {
+      "description": "Image pixel height",
+      "minimum": 1,
+      "title": "H",
+      "type": "integer"
+    },
+    "exposure": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "EXIF exposure time in seconds if available",
+      "title": "Exposure"
+    }
+  },
+  "required": [
+    "side",
+    "path",
+    "sha256",
+    "w",
+    "h"
+  ],
+  "title": "ImageRef",
+  "type": "object"
+}

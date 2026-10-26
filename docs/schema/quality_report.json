@@ -1,0 +1,47 @@
+{
+  "description": "Evaluation output from the quality gate for checkpoint k.",
+  "properties": {
+    "journey_code": {
+      "title": "Journey Code",
+      "type": "string"
+    },
+    "cp_index": {
+      "title": "Cp Index",
+      "type": "integer"
+    },
+    "q_k": {
+      "description": "Combined quality factor in [0, 1]",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Q K",
+      "type": "number"
+    },
+    "feature_scores": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Feature Scores",
+      "type": "object"
+    },
+    "passed": {
+      "description": "Whether q_k >= theta threshold",
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+    }
+  },
+  "required": [
+    "journey_code",
+    "cp_index",
+    "q_k",
+    "passed"
+  ],
+  "title": "QualityReport",
+  "type": "object"
+}

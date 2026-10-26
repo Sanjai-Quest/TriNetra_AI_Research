@@ -1,0 +1,23 @@
+# TriNetra-Link Quality Gate Parameters
+# Feature thresholds used to compute q_k = prod(q_{k,f}) in [0, 1]
+
+image:
+  min_luminance: 30.0
+  max_luminance: 240.0
+  min_laplacian_variance: 0.10
+  max_specular_fraction: 0.15
+  min_width: 640
+  min_height: 480
+
+scale:
+  min_readings: 3
+  min_weight_g: 1.0
+  max_spread_g: 2.0
+  allowed_statuses:
+    - "OK"
+    - "MANUAL"
+    - "SETTLED"
+
+temporal:
+  max_calibration_age_days: 365
+  enforce_chronological_order: true

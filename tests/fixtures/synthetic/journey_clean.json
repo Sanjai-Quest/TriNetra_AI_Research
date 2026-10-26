@@ -1,0 +1,71 @@
+{
+  "synthetic": true,
+  "journey_code": "JRN-SYNTH-CLEAN01",
+  "status": "COMPLETED",
+  "metadata": {
+    "fixture_type": "hand_written_unit_test",
+    "pattern": "Clean transit, all checkpoints intact"
+  },
+  "checkpoints": [
+    {
+      "journey_code": "JRN-SYNTH-CLEAN01",
+      "cp_index": 1,
+      "ts_utc": "2026-10-26T08:00:00Z",
+      "device_id": "DEV-001",
+      "operator_id": "OP-01",
+      "weights_g": [350.2, 350.1, 350.3],
+      "scale_id": "SCALE-01",
+      "scale_status": "OK",
+      "calibration_date": "2026-09-01",
+      "seal_qr": "SEAL-CLN-01",
+      "serial": "SN-CLN-001",
+      "imei": "358999112233001",
+      "app_version": "2.6.0"
+    },
+    {
+      "journey_code": "JRN-SYNTH-CLEAN01",
+      "cp_index": 2,
+      "ts_utc": "2026-10-26T10:00:00Z",
+      "device_id": "DEV-002",
+      "operator_id": "OP-02",
+      "weights_g": [350.3, 350.2, 350.1],
+      "scale_id": "SCALE-02",
+      "scale_status": "OK",
+      "calibration_date": "2026-09-01",
+      "seal_qr": "SEAL-CLN-01",
+      "serial": "SN-CLN-001",
+      "imei": "358999112233001",
+      "app_version": "2.6.0"
+    },
+    {
+      "journey_code": "JRN-SYNTH-CLEAN01",
+      "cp_index": 3,
+      "ts_utc": "2026-10-26T12:00:00Z",
+      "device_id": "DEV-003",
+      "operator_id": "OP-03",
+      "weights_g": [350.1, 350.2, 350.2],
+      "scale_id": "SCALE-03",
+      "scale_status": "OK",
+      "calibration_date": "2026-09-01",
+      "seal_qr": "SEAL-CLN-01",
+      "serial": "SN-CLN-001",
+      "imei": "358999112233001",
+      "app_version": "2.6.0"
+    },
+    {
+      "journey_code": "JRN-SYNTH-CLEAN01",
+      "cp_index": 4,
+      "ts_utc": "2026-10-26T14:00:00Z",
+      "device_id": "DEV-004",
+      "operator_id": "OP-04",
+      "weights_g": [350.2, 350.3, 350.1],
+      "scale_id": "SCALE-04",
+      "scale_status": "OK",
+      "calibration_date": "2026-09-01",
+      "seal_qr": "SEAL-CLN-01",
+      "serial": "SN-CLN-001",
+      "imei": "358999112233001",
+      "app_version": "2.6.0"
+    }
+  ]
+}

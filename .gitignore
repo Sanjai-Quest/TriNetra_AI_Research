@@ -17,6 +17,8 @@ local.properties
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.coverage
+*.sqlite
 
 # Local secrets
 .env

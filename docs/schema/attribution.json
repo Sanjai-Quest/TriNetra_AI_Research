@@ -1,0 +1,76 @@
+{
+  "description": "Stage-level chain-of-custody attribution output.",
+  "properties": {
+    "journey_code": {
+      "title": "Journey Code",
+      "type": "string"
+    },
+    "label": {
+      "description": "LEGITIMATE, STAGE(a), ABSTAIN_DEGRADED, or ABSTAIN_INDISTINGUISHABLE",
+      "title": "Label",
+      "type": "string"
+    },
+    "posterior": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "description": "Posterior probability per stage",
+      "title": "Posterior",
+      "type": "object"
+    },
+    "interval": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Attributed interval [a, b]",
+      "title": "Interval"
+    },
+    "trusted_set": {
+      "description": "Set of checkpoints with q_k >= theta",
+      "items": {
+        "type": "integer"
+      },
+      "title": "Trusted Set",
+      "type": "array"
+    },
+    "per_modality_evidence": {
+      "additionalProperties": true,
+      "title": "Per Modality Evidence",
+      "type": "object"
+    },
+    "rationale_text": {
+      "description": "Human-readable causal explanation",
+      "title": "Rationale Text",
+      "type": "string"
+    },
+    "decision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Normative operational decision e.g. DEC_REFUND",
+      "title": "Decision"
+    }
+  },
+  "required": [
+    "journey_code",
+    "label",
+    "rationale_text"
+  ],
+  "title": "Attribution",
+  "type": "object"
+}

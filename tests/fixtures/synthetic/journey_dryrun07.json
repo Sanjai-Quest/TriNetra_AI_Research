@@ -1,0 +1,83 @@
+{
+  "synthetic": true,
+  "journey_code": "JRN-SYNTH-DRYRUN07",
+  "status": "COMPLETED",
+  "metadata": {
+    "fixture_type": "hand_written_unit_test",
+    "pattern": "DRYRUN-07: CP3 dark with scale error"
+  },
+  "checkpoints": [
+    {
+      "journey_code": "JRN-SYNTH-DRYRUN07",
+      "cp_index": 1,
+      "ts_utc": "2026-10-26T08:00:00Z",
+      "device_id": "DEV-001",
+      "operator_id": "OP-01",
+      "weights_g": [500.2, 500.1, 500.3],
+      "scale_id": "SCALE-01",
+      "scale_status": "OK",
+      "calibration_date": "2026-09-01",
+      "seal_qr": "SEAL-A101",
+      "serial": "SN-998811",
+      "imei": "358999112233445",
+      "app_version": "2.6.0",
+      "images": [
+        {"side": "front", "path": "fixtures/cp1_front.png", "sha256": "fake1", "w": 1280, "h": 720}
+      ]
+    },
+    {
+      "journey_code": "JRN-SYNTH-DRYRUN07",
+      "cp_index": 2,
+      "ts_utc": "2026-10-26T10:00:00Z",
+      "device_id": "DEV-002",
+      "operator_id": "OP-02",
+      "weights_g": [500.2, 500.3, 500.1],
+      "scale_id": "SCALE-02",
+      "scale_status": "OK",
+      "calibration_date": "2026-09-01",
+      "seal_qr": "SEAL-A101",
+      "serial": "SN-998811",
+      "imei": "358999112233445",
+      "app_version": "2.6.0",
+      "images": [
+        {"side": "front", "path": "fixtures/cp2_front.png", "sha256": "fake2", "w": 1280, "h": 720}
+      ]
+    },
+    {
+      "journey_code": "JRN-SYNTH-DRYRUN07",
+      "cp_index": 3,
+      "ts_utc": "2026-10-26T12:00:00Z",
+      "device_id": "DEV-003",
+      "operator_id": "OP-03",
+      "weights_g": [0.0, 0.0, 0.0],
+      "scale_id": "SCALE-03",
+      "scale_status": "ERROR",
+      "calibration_date": "2026-09-01",
+      "seal_qr": "SEAL-A101",
+      "serial": "SN-998811",
+      "imei": "358999112233445",
+      "app_version": "2.6.0",
+      "images": [
+        {"side": "front", "path": "fixtures/cp3_front.png", "sha256": "fake3", "w": 320, "h": 240}
+      ]
+    },
+    {
+      "journey_code": "JRN-SYNTH-DRYRUN07",
+      "cp_index": 4,
+      "ts_utc": "2026-10-26T14:00:00Z",
+      "device_id": "DEV-004",
+      "operator_id": "OP-04",
+      "weights_g": [420.0, 420.1, 419.9],
+      "scale_id": "SCALE-04",
+      "scale_status": "OK",
+      "calibration_date": "2026-09-01",
+      "seal_qr": "SEAL-TAMPERED-X",
+      "serial": "SN-998811",
+      "imei": "358999112233445",
+      "app_version": "2.6.0",
+      "images": [
+        {"side": "front", "path": "fixtures/cp4_front.png", "sha256": "fake4", "w": 1280, "h": 720}
+      ]
+    }
+  ]
+}

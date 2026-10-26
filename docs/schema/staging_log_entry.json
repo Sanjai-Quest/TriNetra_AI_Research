@@ -1,0 +1,87 @@
+{
+  "description": "Physically staged scenario log entry (Restricted Data).",
+  "properties": {
+    "journey_code": {
+      "title": "Journey Code",
+      "type": "string"
+    },
+    "scenario_id": {
+      "title": "Scenario Id",
+      "type": "string"
+    },
+    "cell_id": {
+      "title": "Cell Id",
+      "type": "string"
+    },
+    "nominal_weight_g": {
+      "title": "Nominal Weight G",
+      "type": "number"
+    },
+    "planned_tamper_stage": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Planned Tamper Stage"
+    },
+    "actual_tamper_stage": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Actual Tamper Stage"
+    },
+    "tamper_type": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tamper Type"
+    },
+    "video_sha256": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Video Sha256"
+    },
+    "timestamp_utc": {
+      "format": "date-time",
+      "title": "Timestamp Utc",
+      "type": "string"
+    },
+    "staged_by": {
+      "title": "Staged By",
+      "type": "string"
+    }
+  },
+  "required": [
+    "journey_code",
+    "scenario_id",
+    "cell_id",
+    "nominal_weight_g",
+    "staged_by"
+  ],
+  "title": "StagingLogEntry",
+  "type": "object"
+}
