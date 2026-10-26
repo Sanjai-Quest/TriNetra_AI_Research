@@ -9,7 +9,7 @@ from typing import List, Optional
 import typer
 
 from trinetra_link import __version__
-from trinetra_link.config import DERIVED_DATA_DIR, RESTRICTED_DATA_DIR
+from trinetra_link.config import DERIVED_DATA_DIR, REPO_ROOT, RESTRICTED_DATA_DIR, RESULTS_DIR
 from trinetra_link.fit import fit_thresholds
 from trinetra_link.scale.characterise import characterise_scale, record_reference_readings
 from trinetra_link.schema.export import export_schemas
@@ -37,12 +37,15 @@ staging_app = typer.Typer(help="Physical staging cell assignment and manipulatio
 truth_app = typer.Typer(help="Ground-truth commitment, derivation, and audit (Gate G-2)")
 pilot_app = typer.Typer(help="Pilot journey verification and frozen quality floors (Gate G-3)")
 eval_app = typer.Typer(help="Empirical evaluation and baseline experiments (E1, E2, E3)")
+demo_app = typer.Typer(help="Synthetic dry-run demonstration pipeline (Phase 1 Review Demo)")
 
 app.add_typer(scale_app, name="scale")
 app.add_typer(staging_app, name="staging")
 app.add_typer(truth_app, name="truth")
 app.add_typer(pilot_app, name="pilot")
 app.add_typer(eval_app, name="eval")
+app.add_typer(demo_app, name="demo")
+
 
 
 # --- Root Commands ---
@@ -108,13 +111,19 @@ def viewer_cmd(
     host: str = typer.Option("127.0.0.1", "--host", "-h", help="Bind host address"),
     port: int = typer.Option(8501, "--port", "-p", help="Port number"),
     db_path: Optional[str] = typer.Option(None, "--db", help="Path to SQLite store"),
+    demo: bool = typer.Option(False, "--demo", help="Launch viewer in synthetic dry-run demo mode"),
 ) -> None:
     """Launch the blinded read-only TriNetra-Link Research Viewer."""
     import uvicorn
     from trinetra_link.viewer.app import create_viewer_app
 
-    viewer_app = create_viewer_app(db_path=db_path)
-    typer.echo(f"Starting TriNetra-Link Research Viewer on http://{host}:{port} ...")
+    effective_db = db_path
+    if demo and not effective_db:
+        effective_db = str(REPO_ROOT / "demo_data" / "synthetic_120" / "store.db")
+
+    viewer_app = create_viewer_app(db_path=effective_db, demo_mode=demo)
+    mode_text = " [SYNTHETIC DEMO MODE]" if demo else ""
+    typer.echo(f"Starting TriNetra-Link Research Viewer{mode_text} on http://{host}:{port} ...")
     uvicorn.run(viewer_app, host=host, port=port)
 
 
@@ -455,6 +464,7 @@ def eval_e1_cmd(
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Target output results directory"),
     run_id: Optional[str] = typer.Option(None, "--run-id", help="Experiment run ID"),
     bootstrap: int = typer.Option(2000, "--bootstrap", "-b", help="Bootstrap resamples for 95% CIs"),
+    allow_synthetic_dry_run: bool = typer.Option(False, "--allow-synthetic-dry-run", help="Explicitly permit evaluation on synthetic demo data (refused by default)"),
 ) -> None:
     """Run Primary Benchmark Comparison against baselines B1..B5 on test split (E1)."""
     if split != "test":
@@ -469,6 +479,7 @@ def eval_e1_cmd(
             output_dir=output,
             run_id=run_id,
             b_bootstrap=bootstrap,
+            allow_synthetic_dry_run=allow_synthetic_dry_run,
         )
         typer.secho(f"Experiment E1 Completed Successfully -> Run ID: {res['run_id']}", fg=typer.colors.GREEN)
         typer.echo(f"  Artifacts saved to: {Path(res['artifacts']['csv_table']).parent}")
@@ -565,5 +576,98 @@ def eval_all_cmd(
     typer.secho("\n[SUCCESS] All empirical evaluations (E1, E2, E3) completed successfully.", fg=typer.colors.GREEN)
 
 
+# --- Demo Subcommands (Phase 1 Review Demo) ---
+
+@demo_app.command("generate")
+def demo_generate_cmd(
+    output_dir: Optional[str] = typer.Option(None, "--output-dir", "-o", help="Target output directory"),
+    sigma: float = typer.Option(1.0, "--sigma", help="Assumed scale standard deviation in grams"),
+    seed: int = typer.Option(777, "--seed", help="Random seed for generation"),
+) -> None:
+    """Generate the synthetic dry-run study dataset of 120 journeys across 8 scenario cells."""
+    from trinetra_link.demo.make_synthetic_dryrun import generate_synthetic_dryrun_dataset
+
+    typer.echo(f"Generating synthetic dry-run dataset (N=120, sigma={sigma}g, seed={seed})...")
+    res = generate_synthetic_dryrun_dataset(output_dir=output_dir, scale_sigma=sigma, seed=seed)
+    typer.secho(f"Synthetic dataset generated successfully: {res['output_dir']}", fg=typer.colors.GREEN)
+    typer.echo(f"  Total Journeys:  {res['n_journeys']} (24 calibration / 96 test)")
+    typer.echo(f"  Images Rendered: {res['total_images']}")
+
+
+@demo_app.command("run")
+def demo_run_cmd(
+    sigma: float = typer.Option(1.0, "--sigma", help="Assumed scale standard deviation in grams"),
+    seed: int = typer.Option(777, "--seed", help="Random seed for synthetic dataset generation"),
+    bootstrap: int = typer.Option(2000, "--bootstrap", "-b", help="Bootstrap iterations for confidence intervals"),
+    skip_llm: bool = typer.Option(True, "--skip-llm/--run-llm", help="Skip LLM Judge unless GROQ_API_KEY is configured"),
+) -> None:
+    """
+    Execute full synthetic dry run for Phase 1 review demo:
+      1. Generates synthetic 120-journey dataset if missing.
+      2. Fits hyperparameters on synthetic calibration split.
+      3. Evaluates TriNetra-Link vs baselines B1–B3 and B5 (and B4 if API key present).
+      4. Writes watermarked tables, figures, and provenance to results/SYNTHETIC_DRY_RUN_<timestamp>/.
+    """
+    from trinetra_link.demo.make_synthetic_dryrun import generate_synthetic_dryrun_dataset
+
+    demo_dir = REPO_ROOT / "demo_data" / "synthetic_120"
+    db_file = demo_dir / "store.db"
+    manifest_file = demo_dir / "split_manifest.json"
+
+    # Step 1: Ensure dataset is present
+    if not db_file.exists() or not manifest_file.exists():
+        typer.echo("Synthetic dry-run dataset not found. Generating now...")
+        generate_synthetic_dryrun_dataset(output_dir=demo_dir, scale_sigma=sigma, seed=seed)
+
+    # Step 2: Fit thresholds on synthetic calibration split
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    run_dir = RESULTS_DIR / f"SYNTHETIC_DRY_RUN_{timestamp}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    typer.secho("\n[DEMO STEP 1/2] Fitting hyperparameters on synthetic calibration split (24 journeys)...", fg=typer.colors.CYAN)
+    store = Store(db_file)
+    with open(manifest_file, "r", encoding="utf-8") as fp:
+        manifest_data = json.load(fp)
+
+    cal_codes = set(manifest_data.get("calibration_journey_codes", []))
+    cal_journeys = [store.get_journey(c) for c in cal_codes if store.get_journey(c)]
+
+    fit_res = fit_thresholds(
+        cal_journeys,
+        split_name="calibration",
+        output_dir=run_dir / "fit",
+    )
+    typer.secho(f"Fitted calibration thresholds saved -> {fit_res['saved_path']}", fg=typer.colors.GREEN)
+    typer.echo(f"  theta = {fit_res['theta']:.2f}, z = {fit_res['z_weight']:.2f}, tau = {fit_res['tau_bayes']:.2f}")
+
+    # Step 3: Run primary benchmark comparison on synthetic test split (96 journeys)
+    typer.secho("\n[DEMO STEP 2/2] Evaluating TriNetra-Link vs baselines on synthetic test split (96 journeys)...", fg=typer.colors.CYAN)
+    eval_res = evaluate_e1(
+        split_manifest_path=manifest_file,
+        staging_log_path=demo_dir / "staging_log_120.csv",
+        scales_path=demo_dir / "scales.json",
+        output_dir=run_dir / "eval",
+        run_id=f"SYNTHETIC_DRY_RUN_{timestamp}",
+        b_bootstrap=bootstrap,
+        allow_synthetic_dry_run=True,
+        is_demo_run=True,
+        skip_llm_if_no_key=skip_llm,
+    )
+
+    typer.secho("\n" + "=" * 76, fg=typer.colors.YELLOW)
+    typer.secho("  SYNTHETIC DRY RUN COMPLETE — NOT EMPIRICAL RESULTS (DEMO FIXTURES ONLY)", fg=typer.colors.YELLOW, bold=True)
+    typer.secho("=" * 76, fg=typer.colors.YELLOW)
+    typer.echo(f"Run Directory:     {run_dir}")
+    typer.echo(f"Table III (CSV):   {eval_res['artifacts']['csv_table']}")
+    typer.echo(f"Table III (LaTeX): {eval_res['artifacts']['latex_table']}")
+    typer.echo(f"Risk-Coverage Fig: {eval_res['artifacts']['figure_png']}")
+    typer.echo(f"Provenance:        {run_dir / 'eval' / 'provenance.json'}")
+    typer.echo("\nSummary of Evaluated Methods:")
+    for row in eval_res["results_summary"]:
+        typer.echo(f"  {row['method']:25s} | Acc (DET): {row['stage_acc_det']:.3f} {row['stage_acc_ci']} | AAR: {row['aar_non_det']:.3f}")
+    typer.secho("\n[PASS] All demo artifacts successfully watermarked: 'SYNTHETIC DRY RUN — NOT A RESULT'", fg=typer.colors.GREEN)
+
+
 if __name__ == "__main__":
     app()
+

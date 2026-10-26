@@ -51,8 +51,8 @@ def scan_for_column_invariance():
                 break
             curr = os.path.dirname(curr)
 
-        # Skip quarantined directories, load test logs, audit files, and restricted research protocol ledgers
-        if is_quarantined or any(skip in rel.lower() for skip in ["audit", "test_fixtures", "load_test", "legacy", "reviewed_v2", "restricted"]):
+        # Skip quarantined directories, load test logs, audit files, demo data, and restricted research protocol ledgers
+        if is_quarantined or any(skip in rel.lower() for skip in ["audit", "test_fixtures", "load_test", "legacy", "reviewed_v2", "restricted", "demo_data", "demo"]):
             continue
         try:
             df = pd.read_csv(csv_path)

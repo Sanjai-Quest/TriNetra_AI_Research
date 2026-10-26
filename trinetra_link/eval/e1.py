@@ -129,6 +129,9 @@ def evaluate_e1(
     output_dir: Optional[Path | str] = None,
     run_id: Optional[str] = None,
     b_bootstrap: int = 2000,
+    allow_synthetic_dry_run: bool = False,
+    is_demo_run: bool = False,
+    skip_llm_if_no_key: bool = False,
 ) -> Dict[str, Any]:
     """
     Execute Experiment E1: Primary Benchmark Evaluation on the 96-journey test split.
@@ -157,20 +160,43 @@ def evaluate_e1(
     if not test_codes:
         raise ValueError("No test journey codes found in split manifest")
 
+    # Anti-fabrication check: detect synthetic dry-run demo data
+    is_synthetic = (
+        ("demo_data" in str(s_path).replace("\\", "/"))
+        or ("synthetic" in str(s_path).lower())
+        or split_data.get("synthetic") is True
+        or any(str(c).startswith("SYN-") for c in test_codes)
+    )
+
+    if is_synthetic and not allow_synthetic_dry_run:
+        raise RuntimeError(
+            "REFUSAL TO EXECUTE ON SYNTHETIC DEMO DATA:\n"
+            f"Dataset manifest '{s_path}' contains synthetic demo fixtures ('SYN-' journey codes).\n"
+            "Empirical evaluations strictly refuse demo fixtures by default to prevent inadvertent reporting.\n"
+            "To explicitly permit a demonstration dry run, specify '--allow-synthetic-dry-run'."
+        )
+
     # 2. Load staging log
     staging_rows = load_staging_log(staging_log_path)
     if not staging_rows:
-        # Load from restricted assignment sheet if log empty
-        assign_csv = REPO_ROOT / "data" / "restricted" / "staging_assignment_120.csv"
-        if assign_csv.exists():
-            import csv
-            with open(assign_csv, "r", encoding="utf-8") as fp:
-                staging_rows = list(csv.DictReader(fp))
-                for r in staging_rows:
-                    r["manipulation_interval"] = r.get("target_interval", "none")
+        if is_synthetic:
+            demo_log_csv = REPO_ROOT / "demo_data" / "synthetic_120" / "staging_log_120.csv"
+            if demo_log_csv.exists():
+                import csv
+                with open(demo_log_csv, "r", encoding="utf-8") as fp:
+                    staging_rows = list(csv.DictReader(fp))
+        else:
+            # Load from restricted assignment sheet if log empty
+            assign_csv = REPO_ROOT / "data" / "restricted" / "staging_assignment_120.csv"
+            if assign_csv.exists():
+                import csv
+                with open(assign_csv, "r", encoding="utf-8") as fp:
+                    staging_rows = list(csv.DictReader(fp))
+                    for r in staging_rows:
+                        r["manipulation_interval"] = r.get("target_interval", "none")
 
     if not staging_rows:
-        raise FileNotFoundError("Neither staging log nor assignment sheet found in data/restricted/")
+        raise FileNotFoundError("Neither staging log nor assignment sheet found in data/restricted/ or demo_data/")
 
     # Filter to test split
     test_staging = [r for r in staging_rows if r["journey_code"] in test_codes]
@@ -180,13 +206,23 @@ def evaluate_e1(
 
     # Load scales configuration if present
     scales_config = None
-    sc_path = Path(scales_path) if scales_path else DERIVED_DATA_DIR / "scales.json"
+    sc_path = Path(scales_path) if scales_path else (
+        REPO_ROOT / "demo_data" / "synthetic_120" / "scales.json" if is_synthetic else DERIVED_DATA_DIR / "scales.json"
+    )
     if sc_path.exists():
         try:
             with open(sc_path, "r", encoding="utf-8") as fp:
                 scales_config = json.load(fp)
         except Exception:
             pass
+
+    # Optional SQLite store connection for pre-generated synthetic journeys
+    demo_store = None
+    if is_synthetic:
+        from trinetra_link.store.database import Store
+        demo_db_path = REPO_ROOT / "demo_data" / "synthetic_120" / "store.db"
+        if demo_db_path.exists():
+            demo_store = Store(demo_db_path)
 
     # 3. Derive Ground Truth and construct journeys
     ground_truth_labels: List[str] = []
@@ -195,11 +231,19 @@ def evaluate_e1(
     test_journeys: List[Journey] = []
 
     for r in test_staging:
+        code = r["journey_code"]
         omega_star, expected_label, _ = derive_ground_truth(r)
         ground_truth_labels.append(canonicalize_label(expected_label))
         omega_stars.append(omega_star)
         scenario_cells.append(r.get("assigned_cell", "unknown"))
-        test_journeys.append(generate_benchmark_journey_from_staging(r))
+
+        loaded_journey = None
+        if demo_store:
+            loaded_journey = demo_store.get_journey(code)
+        if loaded_journey:
+            test_journeys.append(loaded_journey)
+        else:
+            test_journeys.append(generate_benchmark_journey_from_staging(r))
 
     # 4. Method Evaluators
     methods: Dict[str, Callable[[Journey], Any]] = {
@@ -208,9 +252,13 @@ def evaluate_e1(
         "B1 (CP4-only)": predict_b1_cp4,
         "B2 (Endpoints CP1+CP4)": predict_b2_endpoints,
         "B3 (Detection=Origin)": predict_b3_unlinked,
-        "B4 (LLM Judge)": predict_b4_llm_judge,
         "B5 (V3 Rules)": predict_b5_v3_rules,
     }
+
+    # Include LLM Judge baseline unless instructed to skip or key is absent in demo mode
+    has_groq_key = bool(os.environ.get("GROQ_API_KEY"))
+    if has_groq_key or not (skip_llm_if_no_key or is_demo_run):
+        methods["B4 (LLM Judge)"] = predict_b4_llm_judge
 
     results_table: List[Dict[str, Any]] = []
     method_predictions: Dict[str, List[str]] = {}
@@ -261,7 +309,9 @@ def evaluate_e1(
     ref_preds = method_predictions["TriNetra-Link (Alg 1)"]
     det_mask = [om == "OBS_DETERMINABLE" for om in omega_stars]
 
-    for m_name in ("B1 (CP4-only)", "B2 (Endpoints CP1+CP4)", "B3 (Detection=Origin)", "B4 (LLM Judge)", "B5 (V3 Rules)"):
+    for m_name in methods.keys():
+        if m_name == "TriNetra-Link (Alg 1)" or m_name not in method_predictions:
+            continue
         b_disc, c_disc, p_val = exact_mcnemar_test(
             ref_preds, method_predictions[m_name], ground_truth_labels, filter_mask=det_mask
         )
@@ -281,14 +331,25 @@ def evaluate_e1(
     plt.figure(figsize=(7, 5), dpi=300)
 
     for m_name in ("TriNetra-Link (Alg 1)", "TriNetra-Link (Bayes)", "B3 (Detection=Origin)", "B5 (V3 Rules)"):
-        covs, risks, aurc = compute_risk_coverage_curve(
-            method_predictions[m_name], method_confidences[m_name], ground_truth_labels, omega_stars
+        if m_name in method_predictions:
+            covs, risks, aurc = compute_risk_coverage_curve(
+                method_predictions[m_name], method_confidences[m_name], ground_truth_labels, omega_stars
+            )
+            plt.plot(covs, risks, label=f"{m_name} (AURC: {aurc:.3f})", lw=2)
+
+    # Prominent Watermark across Plot for Synthetic Demo Run
+    if is_synthetic or is_demo_run:
+        plt.text(
+            0.5, 0.5, "SYNTHETIC DRY RUN — NOT A RESULT",
+            transform=plt.gca().transAxes,
+            fontsize=15, color="red", alpha=0.35,
+            ha="center", va="center", rotation=30, weight="bold"
         )
-        plt.plot(covs, risks, label=f"{m_name} (AURC: {aurc:.3f})", lw=2)
 
     plt.xlabel("Coverage (Fraction of Evaluated Journeys)", fontsize=11)
     plt.ylabel("Selective Risk (Error Rate)", fontsize=11)
-    plt.title("Risk-Coverage Tradeoff on Test Cohort (E1)", fontsize=12, fontweight="bold")
+    title_suffix = " [SYNTHETIC DEMO]" if (is_synthetic or is_demo_run) else ""
+    plt.title(f"Risk-Coverage Tradeoff on Test Cohort (E1){title_suffix}", fontsize=12, fontweight="bold")
     plt.grid(True, linestyle="--", alpha=0.6)
     plt.legend(loc="upper left", fontsize=9)
     plt.tight_layout()
@@ -299,6 +360,8 @@ def evaluate_e1(
     # 8. Generate Tables: CSV and LaTeX Table III
     csv_path = target_dir / "table3_primary_comparison.csv"
     with open(csv_path, "w", encoding="utf-8") as fp:
+        if is_synthetic or is_demo_run:
+            fp.write("# SYNTHETIC DRY RUN — NOT A RESULT (DEMO DATA ONLY)\n")
         fp.write("Method,Stage Accuracy (DET),95% CI,Macro-F1 (S1-S3),AAR (Non-DET),UBR (Non-DET),UAR (DET),AURC\n")
         for r in results_table:
             fp.write(
@@ -308,6 +371,8 @@ def evaluate_e1(
 
     latex_path = target_dir / "table3_primary_comparison.tex"
     with open(latex_path, "w", encoding="utf-8") as fp:
+        if is_synthetic or is_demo_run:
+            fp.write("% SYNTHETIC DRY RUN — NOT A RESULT (DEMO DATA ONLY)\n")
         fp.write("% TriNetra-Link Primary Experimental Comparison (Table III)\n")
         fp.write("\\begin{table*}[t]\n\\centering\n\\small\n")
         fp.write("\\begin{tabular}{lcccccccc}\n\\toprule\n")
@@ -318,7 +383,12 @@ def evaluate_e1(
                 f"{r['aar_non_det']:.3f} & {r['ubr_non_det']:.3f} & {r['uar_det']:.3f} & {r['aurc']:.3f} \\\\\n"
             )
         fp.write("\\bottomrule\n\\end{tabular}\n")
-        fp.write("\\caption{Primary benchmark comparison across 96 physical test journeys (E1).}\n")
+        caption_str = (
+            "\\caption{\\textbf{[SYNTHETIC DRY RUN — NOT A RESULT]} Demonstration benchmark comparison across 96 synthetic test journeys (E1).}\n"
+            if (is_synthetic or is_demo_run)
+            else "\\caption{Primary benchmark comparison across 96 physical test journeys (E1).}\n"
+        )
+        fp.write(caption_str)
         fp.write("\\label{tab:table3_primary}\n\\end{table*}\n")
 
     # 9. Provenance Manifest
@@ -339,6 +409,11 @@ def evaluate_e1(
             "figure_pdf": str(fig_path_pdf),
         },
     }
+
+    if is_synthetic or is_demo_run:
+        prov["watermark"] = "SYNTHETIC DRY RUN — NOT A RESULT"
+        prov["synthetic_dry_run"] = True
+        prov["disclaimer"] = "Generated from programmatic synthetic demo fixtures. Not an empirical research result."
 
     prov_path = target_dir / "provenance.json"
     with open(prov_path, "w", encoding="utf-8") as fp:

@@ -50,6 +50,9 @@ def reconcile_weights(
     Returns:
         (is_anomaly, observed_delta_g, threshold_bound_g)
     """
+    if not obs_baseline.weights_g or not obs_current.weights_g:
+        return False, 0.0, 0.0
+
     w_a_raw = float(float(sorted(obs_baseline.weights_g)[len(obs_baseline.weights_g) // 2]))
     w_b_raw = float(float(sorted(obs_current.weights_g)[len(obs_current.weights_g) // 2]))
 

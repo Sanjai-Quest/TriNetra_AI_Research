@@ -39,3 +39,13 @@ data/restricted/
 # Embargoed ground truth files
 research/reviewed_v2/ground_truth_ledger_60.csv
 **/calibration_answer_key_restricted.md
+
+# Synthetic dry-run demo data (Phase 1 review fixtures)
+demo_data/synthetic_120/*
+!demo_data/synthetic_120/README.md
+
+# Dynamic experiment results
+results/*
+!results/.gitkeep
+
+

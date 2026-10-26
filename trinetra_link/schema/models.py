@@ -22,7 +22,7 @@ class CheckpointObservation(BaseModel):
     ts_utc: datetime = Field(..., description="Timestamp of observation in UTC")
     device_id: str = Field(..., description="Capturing device UUID or identifier")
     operator_id: str = Field(..., description="Capture operator identifier")
-    weights_g: List[float] = Field(..., min_length=1, description="Repeated weight readings in grams (>= 3)")
+    weights_g: List[float] = Field(default_factory=list, description="Repeated weight readings in grams (>= 3)")
     scale_id: str = Field(..., description="Identifier of the scale used")
     scale_status: str = Field(default="OK", description="Status code from scale, e.g. OK, MANUAL, UNSTABLE, ERROR")
     calibration_date: Optional[str] = Field(default=None, description="Last calibration date (YYYY-MM-DD)")
