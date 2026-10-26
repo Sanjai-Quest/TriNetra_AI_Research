@@ -62,5 +62,18 @@ def fit_cmd(
         raise typer.Exit(code=2)
 
 
+@app.command("serve")
+def serve_cmd(
+    host: str = typer.Option("0.0.0.0", "--host", "-h", help="Bind host address"),
+    port: int = typer.Option(8000, "--port", "-p", help="Port number"),
+) -> None:
+    """Launch the TriNetra-Link Ingest API and Mobile Capture web server."""
+    import uvicorn
+    from trinetra_link.ingest.api import app as fastapi_app
+
+    typer.echo(f"Starting TriNetra-Link Ingest API on http://{host}:{port} ...")
+    uvicorn.run(fastapi_app, host=host, port=port)
+
+
 if __name__ == "__main__":
     app()

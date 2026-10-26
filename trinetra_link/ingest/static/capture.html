@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TriNetra-Link | Mobile Physical Capture Client</title>
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --primary: #38bdf8;
+      --primary-hover: #0ea5e9;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-dark);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 16px;
+      line-height: 1.5;
+    }
+    .container { max-width: 600px; margin: 0 auto; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .logo { font-size: 1.25rem; font-weight: 700; color: var(--primary); }
+    .badge {
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 9999px;
+      background: #0284c7;
+      color: white;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    h2 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: var(--text); }
+    label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
+    input, select, textarea {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .row { display: flex; gap: 8px; }
+    .row > div { flex: 1; }
+    .btn {
+      display: inline-block;
+      width: 100%;
+      background: var(--primary);
+      color: #0f172a;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: var(--primary-hover); }
+    .btn-secondary {
+      background: #334155;
+      color: var(--text);
+      margin-top: 8px;
+    }
+    .btn-secondary:hover { background: #475569; }
+    .camera-box {
+      position: relative;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      aspect-ratio: 4 / 3;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    video { width: 100%; height: 100%; object-fit: cover; }
+    .viewfinder-guide {
+      position: absolute;
+      top: 10%; left: 10%; right: 10%; bottom: 10%;
+      border: 2px dashed rgba(56, 189, 248, 0.6);
+      border-radius: 8px;
+      pointer-events: none;
+    }
+    .thumbnails { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; }
+    .thumb-item {
+      position: relative;
+      flex: 0 0 80px;
+      height: 80px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--card-border);
+    }
+    .thumb-item img { width: 100%; height: 100%; object-fit: cover; }
+    .thumb-tag {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,0.7);
+      font-size: 0.65rem;
+      text-align: center;
+      padding: 2px;
+    }
+    #quality-result {
+      display: none;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+      font-size: 0.85rem;
+    }
+    .qr-pass { background: rgba(16, 185, 129, 0.2); border: 1px solid var(--success); color: #34d399; }
+    .qr-fail { background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); color: #f87171; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">TriNetra-Link</div>
+      <div class="badge" id="api-status">Connecting...</div>
+    </header>
+
+    <!-- Step 1: Session Details -->
+    <div class="card">
+      <h2>1. Checkpoint Setup</h2>
+      <div class="row">
+        <div>
+          <label>Journey Code</label>
+          <input type="text" id="journey_code" placeholder="JRN-2026-0001" value="JRN-2026-0001">
+        </div>
+        <div>
+          <label>Sequence</label>
+          <select id="cp_index">
+            <option value="1">CP1: Origin Dispatch</option>
+            <option value="2">CP2: Intermediate Hub</option>
+            <option value="3">CP3: Destination Hub</option>
+            <option value="4">CP4: Doorstep / Return</option>
+          </select>
+        </div>
+      </div>
+      <label>Device Token (X-Device-Token)</label>
+      <input type="password" id="device_token" value="trinetra-dev-capture-token">
+    </div>
+
+    <!-- Step 2: Camera & Photos -->
+    <div class="card">
+      <h2>2. Guided Photographic Capture</h2>
+      <div class="camera-box">
+        <video id="camera-stream" autoplay playsinline></video>
+        <div class="viewfinder-guide"></div>
+      </div>
+      <div class="row" style="margin-bottom: 8px;">
+        <div>
+          <label>Surface Side</label>
+          <select id="photo_side">
+            <option value="front">Front Orthogonal</option>
+            <option value="top">Top / Seal Surface</option>
+            <option value="back">Back Orthogonal</option>
+            <option value="seal">Tamper Seal Close-up</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn" id="snap-btn" type="button">Take Photo</button>
+      <button class="btn btn-secondary" id="start-cam-btn" type="button">Start / Switch Camera</button>
+      
+      <div style="margin-top: 12px;">
+        <label>Captured Assets (≥ 2 sides required)</label>
+        <div class="thumbnails" id="thumb-container"></div>
+      </div>
+    </div>
+
+    <!-- Step 3: Weighing Protocol -->
+    <div class="card">
+      <h2>3. Three Repeated Weighings (grams)</h2>
+      <div class="row">
+        <div>
+          <label>Reading 1</label>
+          <input type="number" step="0.1" id="w1" placeholder="500.0" value="500.0">
+        </div>
+        <div>
+          <label>Reading 2</label>
+          <input type="number" step="0.1" id="w2" placeholder="500.1" value="500.1">
+        </div>
+        <div>
+          <label>Reading 3</label>
+          <input type="number" step="0.1" id="w3" placeholder="500.0" value="500.0">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Scale ID</label>
+          <input type="text" id="scale_id" value="SCALE-MANUAL-01">
+        </div>
+        <div>
+          <label>Scale Status</label>
+          <select id="scale_status">
+            <option value="OK">OK (Settled)</option>
+            <option value="MANUAL">MANUAL (Verified)</option>
+            <option value="UNSTABLE">UNSTABLE</option>
+            <option value="ERROR">ERROR</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Permitted Packaging Change?</label>
+          <select id="permitted_change">
+            <option value="false">No (Packaging Untouched)</option>
+            <option value="true">Yes (Legitimate Re-tape/Box)</option>
+          </select>
+        </div>
+        <div>
+          <label>Tare Delta (g)</label>
+          <input type="number" step="0.1" id="tare_delta" value="0.0">
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Identity & QR -->
+    <div class="card">
+      <h2>4. Physical Seal & Serial Identity</h2>
+      <label>Tamper-Evident Seal QR Code</label>
+      <input type="text" id="seal_qr" placeholder="Scan or enter seal QR payload" value="SEAL-TEST-001">
+      <div class="row">
+        <div>
+          <label>Serial Number</label>
+          <input type="text" id="serial" placeholder="Serial No." value="SN-882201">
+        </div>
+        <div>
+          <label>IMEI (if cellular)</label>
+          <input type="text" id="imei" placeholder="Optional IMEI">
+        </div>
+      </div>
+      <label>Carrier Custody Log Notes</label>
+      <textarea id="carrier_log" rows="2" placeholder="Hub transit notes, carrier signature, seal condition"></textarea>
+    </div>
+
+    <!-- Step 5: Submission -->
+    <div class="card">
+      <button class="btn" id="submit-btn" type="button">Submit Checkpoint Observation</button>
+      <div id="quality-result"></div>
+    </div>
+  </div>
+
+  <canvas id="hidden-canvas" style="display:none;"></canvas>
+
+  <script>
+    let currentStream = null;
+    let facingMode = 'environment';
+    const capturedPhotos = []; // array of {side: str, blob: Blob, sha256: str}
+
+    const video = document.getElementById('camera-stream');
+    const canvas = document.getElementById('hidden-canvas');
+    const statusBadge = document.getElementById('api-status');
+
+    // Check health
+    fetch('/health')
+      .then(res => res.json())
+      .then(d => {
+        statusBadge.textContent = 'API Online (v' + d.version + ')';
+        statusBadge.style.background = '#10b981';
+      })
+      .catch(() => {
+        statusBadge.textContent = 'Offline';
+        statusBadge.style.background = '#ef4444';
+      });
+
+    // Camera control
+    async function initCamera() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+      }
+      try {
+        currentStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+        video.srcObject = currentStream;
+      } catch (err) {
+        console.warn('getUserMedia failed, switching to default camera:', err);
+        try {
+          currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          video.srcObject = currentStream;
+        } catch (e) {
+          alert('Could not access device camera: ' + e.message);
+        }
+      }
+    }
+
+    document.getElementById('start-cam-btn').addEventListener('click', () => {
+      facingMode = facingMode === 'environment' ? 'user' : 'environment';
+      initCamera();
+    });
+
+    // Auto-init camera on user interaction or load
+    initCamera().catch(() => {});
+
+    // Compute SHA-256 via Web Crypto
+    async function computeSHA256(arrayBuffer) {
+      const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Capture photo
+    document.getElementById('snap-btn').addEventListener('click', async () => {
+      const side = document.getElementById('photo_side').value;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const buffer = await blob.arrayBuffer();
+        const sha256 = await computeSHA256(buffer);
+        capturedPhotos.push({ side, blob, sha256, filename: `${side}.jpg` });
+
+        // Add thumbnail
+        const thumb = document.createElement('div');
+        thumb.className = 'thumb-item';
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(blob);
+        const tag = document.createElement('div');
+        tag.className = 'thumb-tag';
+        tag.textContent = side.toUpperCase();
+        thumb.appendChild(img);
+        thumb.appendChild(tag);
+        document.getElementById('thumb-container').appendChild(thumb);
+      }, 'image/jpeg', 0.90);
+    });
+
+    // Submit Observation
+    document.getElementById('submit-btn').addEventListener('click', async () => {
+      const code = document.getElementById('journey_code').value.trim();
+      const cp = document.getElementById('cp_index').value;
+      const token = document.getElementById('device_token').value.trim();
+      const resBox = document.getElementById('quality-result');
+
+      if (!code) return alert('Journey code is required');
+      if (capturedPhotos.length === 0) {
+        // Fallback: create mock blank 640x480 photo if on desktop testing without camera
+        canvas.width = 640; canvas.height = 480;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#64748b'; ctx.fillRect(0, 0, 640, 480);
+        ctx.fillStyle = '#f8fafc'; ctx.fillText('TriNetra Reference Frame', 200, 240);
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg'));
+        const buffer = await blob.arrayBuffer();
+        const sha256 = await computeSHA256(buffer);
+        capturedPhotos.push({ side: 'front', blob, sha256, filename: 'front.jpg' });
+      }
+
+      const w1 = parseFloat(document.getElementById('w1').value) || 0;
+      const w2 = parseFloat(document.getElementById('w2').value) || 0;
+      const w3 = parseFloat(document.getElementById('w3').value) || 0;
+
+      const metadata = {
+        journey_code: code,
+        cp_index: parseInt(cp),
+        ts_utc: new Date().toISOString(),
+        device_id: 'BROWSER-CLIENT-01',
+        operator_id: 'FIELD-OP',
+        weights_g: [w1, w2, w3],
+        scale_id: document.getElementById('scale_id').value.trim(),
+        scale_status: document.getElementById('scale_status').value,
+        seal_qr: document.getElementById('seal_qr').value.trim() || null,
+        serial: document.getElementById('serial').value.trim() || null,
+        imei: document.getElementById('imei').value.trim() || null,
+        carrier_log: document.getElementById('carrier_log').value.trim() || null,
+        permitted_packaging_change: document.getElementById('permitted_change').value === 'true',
+        tare_delta_g: parseFloat(document.getElementById('tare_delta').value) || 0.0,
+        client_hashes: {}
+      };
+
+      const formData = new FormData();
+      capturedPhotos.forEach((photo, i) => {
+        formData.append('files', photo.blob, photo.filename);
+        metadata.client_hashes[photo.filename] = photo.sha256;
+      });
+      formData.append('data', JSON.stringify(metadata));
+
+      resBox.style.display = 'block';
+      resBox.textContent = 'Uploading and evaluating physical quality factor...';
+      resBox.className = '';
+
+      try {
+        const resp = await fetch(`/journeys/${encodeURIComponent(code)}/checkpoints/${cp}`, {
+          method: 'POST',
+          headers: { 'X-Device-Token': token },
+          body: formData
+        });
+        const data = await resp.json();
+
+        if (resp.ok) {
+          const q = data.quality_report;
+          resBox.className = q.passed ? 'qr-pass' : 'qr-fail';
+          resBox.innerHTML = `
+            <strong>${q.passed ? '✓ Checkpoint Accepted' : '⚠ Quality Warning'} (q = ${q.q_k})</strong><br>
+            Scale Score: ${q.feature_scores.q_scale ?? '1.0'}, Temporal Score: ${q.feature_scores.q_temporal ?? '1.0'}<br>
+            ${q.reasons.length ? 'Notes: ' + q.reasons.join(', ') : 'All physical metadata gates passed.'}
+          `;
+        } else {
+          resBox.className = 'qr-fail';
+          resBox.textContent = 'Upload Failed (' + resp.status + '): ' + (data.detail || JSON.stringify(data));
+        }
+      } catch (err) {
+        resBox.className = 'qr-fail';
+        resBox.textContent = 'Network or submission error: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
