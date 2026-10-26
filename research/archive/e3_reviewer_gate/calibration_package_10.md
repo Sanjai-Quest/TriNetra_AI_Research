@@ -37,13 +37,13 @@ To maintain strict scientific blinding and prevent reviewers from viewing answer
 ## 2. Directory of Calibration Artifacts
 
 1. **Reviewer Case Pack:**  
-   [`calibration_reviewer_pack_10.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/calibration_reviewer_pack_10.md)  
+   [`calibration_reviewer_pack_10.md`](research/reviewed_v2/calibration_reviewer_pack_10.md)  
    *Distribute to Reviewers $R_1, R_2, R_3, R_4$ at the start of the calibration session.*
 2. **Blank Evaluation Form Template:**  
-   [`calibration_ratings_template.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/calibration_ratings_template.csv)  
+   [`calibration_ratings_template.csv`](research/reviewed_v2/calibration_ratings_template.csv)  
    *Reviewers submit their independent attribution and decision ratings here.*
 3. **Restricted Answer Key & Scoring Guide:**  
-   [`calibration_answer_key_restricted.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/calibration_answer_key_restricted.md)  
+   [`calibration_answer_key_restricted.md`](research/reviewed_v2/calibration_answer_key_restricted.md)  
    *Coordinator access only. Used to evaluate responses and compute Fleiss' $\kappa$.*
 
 ---
@@ -81,9 +81,9 @@ Following successful clearance of Gate E-3 and immediately prior to Session 1 of
 
 | Component | Target Criterion | Current Status |
 |:---:|---|:---:|
-| **E-3.1** | Reviewer Case Pack Prepared (Blinded) | **COMPLETED** ([`calibration_reviewer_pack_10.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/calibration_reviewer_pack_10.md)) |
-| **E-3.2** | Restricted Answer Key Prepared | **COMPLETED** ([`calibration_answer_key_restricted.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/calibration_answer_key_restricted.md)) |
-| **E-3.3** | Response Template Prepared | **COMPLETED** ([`calibration_ratings_template.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/calibration_ratings_template.csv)) |
+| **E-3.1** | Reviewer Case Pack Prepared (Blinded) | **COMPLETED** ([`calibration_reviewer_pack_10.md`](research/reviewed_v2/calibration_reviewer_pack_10.md)) |
+| **E-3.2** | Restricted Answer Key Prepared | **COMPLETED** ([`calibration_answer_key_restricted.md`](research/reviewed_v2/calibration_answer_key_restricted.md)) |
+| **E-3.3** | Response Template Prepared | **COMPLETED** ([`calibration_ratings_template.csv`](research/reviewed_v2/calibration_ratings_template.csv)) |
 | **E-3.4** | Text-Based Rubric Calibration Executed | **PENDING** |
 | **E-3.5** | Multi-Rater Fleiss' $\kappa \ge 0.60$ | **PENDING / NOT CLEARED** |
 | **E-3.6** | Unscored UI Familiarization Step | **PENDING (Scheduled Post-E-3)** |

@@ -1,7 +1,7 @@
 # ⚠️ QUARANTINE NOTICE
 
 **Status:** SYNTHETIC — NOT REAL-WORLD DATA  
-**Audit reference:** [`audit/label_and_leakage_findings.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/audit/label_and_leakage_findings.md)  
+**Audit reference:** [`audit/label_and_leakage_findings.md`](label_and_leakage_findings.md)  
 **Date quarantined:** 2026-10-23
 
 ## What this directory contains

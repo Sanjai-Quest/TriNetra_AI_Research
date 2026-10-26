@@ -12,7 +12,7 @@
 This directory provides an isolated testing enclave to evaluate:
 1. **Rubric Diagnostic Clarity:** Testing whether the TriNetra five-layer adjudication taxonomy and decision rules can be interpreted consistently by independent evaluative perspectives.
 2. **Epistemic Edge Cases:** Diagnosing how different review strategies (evidence-first, alternative explanations, boundary tracking, noise filtering) respond to ambiguous, sensor-degraded, and conflicting telemetry.
-3. **Pipeline Safety:** Verifying that the agreement calculation engine ([`compute_calibration_agreement.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/compute_calibration_agreement.py)) correctly computes Fleiss' $\kappa$, decouples attribution from operational decisions, and rejects malformed or blank inputs.
+3. **Pipeline Safety:** Verifying that the agreement calculation engine ([`compute_calibration_agreement.py`](research/reviewed_v2/compute_calibration_agreement.py)) correctly computes Fleiss' $\kappa$, decouples attribution from operational decisions, and rejects malformed or blank inputs.
 
 ---
 

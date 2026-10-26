@@ -3,7 +3,7 @@
 > **Protocol Version:** 1.0.0 (Preregistration-Ready)  
 > **Date:** 2026-10-24  
 > **Study Status:** Design & Protocol Specification (Stage 2 Research Deliverable)  
-> **Reference Schemas:** [`physical_observations_schema.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/physical_observations_schema.md) and [`closest_work_matrix.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/closest_work_matrix.csv)  
+> **Reference Schemas:** [`physical_observations_schema.md`](physical_observations_schema.md) and [`closest_work_matrix.csv`](research/closest_work_matrix.csv)  
 > **Core Rule:** Strictly non-synthetic, unrigged evaluation. Evaluates physical observability, measurement uncertainty, and reviewer decision consistency.
 
 ---
@@ -152,7 +152,7 @@ Ground truth is established *ex-ante* by the lead experimenter and held strictly
 3. **Baseline 3 (Combined Normalized Rules Model - `BaselineCombinedNormalized`):**
    - Applies normalized identity match, relative weight drop ($> 15\%$) or 3-sigma statistical outlier, and pairwise chronological sequence checks across checkpoints.
 4. **Baseline 4 (Structured Evidence Continuity & Abstention Engine - TriNetra Phase 1):**
-   - Ingests multi-point evidence packets conforming to [`physical_observations_schema.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/physical_observations_schema.md).
+   - Ingests multi-point evidence packets conforming to [`physical_observations_schema.md`](physical_observations_schema.md).
    - Incorporates instrument uncertainty: if $|\Delta m| \le 2 \sigma_{\text{instrument}}$, explicitly returns `INDISTINGUISHABLE`.
    - Incorporates authorized repackaging adjustments: deducts known tare mass variations.
    - If critical handover checkpoints are absent, returns `INSUFFICIENT_EVIDENCE`.

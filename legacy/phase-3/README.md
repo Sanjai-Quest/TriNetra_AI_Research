@@ -13,10 +13,10 @@ Phase 3 transitions TriNetra AI from a research prototype into an **enterprise-g
 ## 📑 Research & Academic Cross-References
 
 For research paper construction, the empirical benchmarks and architectural decisions from Phase 3 are formally documented in:
-* **Master Research Document:** [`TRINETRA_AI_MASTER_RESEARCH_DOCUMENTATION.md`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/TRINETRA_AI_MASTER_RESEARCH_DOCUMENTATION.md)
-* **Official Phase 3 Validation Report:** [`phase-3/PHASE_3_RESULTS.md`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/phase-3/PHASE_3_RESULTS.md)
-* **Results Registry:** [`research/experiments/results_registry.csv`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/research/experiments/results_registry.csv)
-* **Load Test Latency & SLA Data:** [`phase-3/load_test/results/`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/phase-3/load_test/results/)
+* **Master Research Document:** [`TRINETRA_AI_MASTER_RESEARCH_DOCUMENTATION.md`](TRINETRA_AI_MASTER_RESEARCH_DOCUMENTATION.md)
+* **Official Phase 3 Validation Report:** [`phase-3/PHASE_3_RESULTS.md`](PHASE_3_RESULTS.md)
+* **Results Registry:** [`research/experiments/results_registry.csv`](results_registry.csv)
+* **Load Test Latency & SLA Data:** [`phase-3/load_test/results/`](results/)
 
 ---
 

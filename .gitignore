@@ -25,3 +25,15 @@ __pycache__/
 
 # Archives
 *.zip
+
+# Quarantined raw notes
+legacy/notes/*.txt
+
+# Local derived and restricted data
+data/derived/
+data/artifacts/
+data/restricted/
+
+# Embargoed ground truth files
+research/reviewed_v2/ground_truth_ledger_60.csv
+**/calibration_answer_key_restricted.md

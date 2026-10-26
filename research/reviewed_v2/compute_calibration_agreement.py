@@ -114,6 +114,57 @@ def compute_fleiss_kappa(ratings_df, target_column, allowed_categories):
         "contingency_matrix": contingency_df,
     }
 
+
+def compute_cohens_kappa(rater1_ratings, rater2_ratings, allowed_categories=None):
+    """
+    Computes Cohen's Kappa for 2 raters classifying N cases.
+    Used for 2-person rule audit (e.g. trinetra truth audit).
+
+    Formula:
+      kappa = (P_o - P_e) / (1 - P_e)
+      where P_o = sum(agree) / N
+      P_e = sum_c (p_1c * p_2c)
+    """
+    assert len(rater1_ratings) == len(rater2_ratings), "Rating sequences must have identical length"
+    N = len(rater1_ratings)
+    if N == 0:
+        return {"kappa": 1.0, "P_o": 1.0, "P_e": 1.0, "N": 0}
+
+    r1_clean = [str(x).strip() for x in rater1_ratings]
+    r2_clean = [str(x).strip() for x in rater2_ratings]
+
+    if allowed_categories is None:
+        categories = sorted(list(set(r1_clean) | set(r2_clean)))
+    else:
+        categories = list(allowed_categories)
+
+    for val in r1_clean + r2_clean:
+        if val not in categories:
+            raise ValueError(f"Invalid category value: {val}")
+
+    cat_to_idx = {c: i for i, c in enumerate(categories)}
+    k = len(categories)
+    conf_matrix = np.zeros((k, k), dtype=int)
+
+    for r1, r2 in zip(r1_clean, r2_clean):
+        conf_matrix[cat_to_idx[r1], cat_to_idx[r2]] += 1
+
+    P_o = float(np.trace(conf_matrix)) / N
+    p1 = np.sum(conf_matrix, axis=1) / N
+    p2 = np.sum(conf_matrix, axis=0) / N
+    P_e = float(np.sum(p1 * p2))
+
+    kappa = (P_o - P_e) / (1.0 - P_e) if P_e != 1.0 else 1.0
+    return {
+        "kappa": float(kappa),
+        "P_o": float(P_o),
+        "P_e": float(P_e),
+        "confusion_matrix": pd.DataFrame(conf_matrix, index=categories, columns=categories),
+        "N": N,
+        "valid": True,
+    }
+
+
 def evaluate_calibration_ratings(csv_path):
     """
     Validates completed calibration ratings CSV and computes Fleiss' Kappa for both

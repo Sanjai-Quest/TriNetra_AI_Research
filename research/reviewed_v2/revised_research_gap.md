@@ -26,7 +26,7 @@ These real-world operational breakdowns expose a fundamental logistical challeng
 
 ## 2. Rigorous Synthesis of Prior Art Across Four Literatures
 
-To establish whether this problem is already solved, 17 sources across four distinct academic and operational domains were audited in detail in [`validated_closest_work_matrix.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/validated_closest_work_matrix.csv):
+To establish whether this problem is already solved, 17 sources across four distinct academic and operational domains were audited in detail in [`validated_closest_work_matrix.csv`](research/reviewed_v2/validated_closest_work_matrix.csv):
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐

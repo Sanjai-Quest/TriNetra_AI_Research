@@ -17,14 +17,14 @@
 ## 📚 Authoritative Research Master Documentation
 
 For academic researchers, supervisors, and peer-reviewers, the complete project research corpus is maintained in:
-👉 **[`TRINETRA_AI_MASTER_RESEARCH_DOCUMENTATION.md`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/TRINETRA_AI_MASTER_RESEARCH_DOCUMENTATION.md)**
+👉 **[`TRINETRA_AI_MASTER_RESEARCH_DOCUMENTATION.md`](TRINETRA_AI_MASTER_RESEARCH_DOCUMENTATION.md)**
 
 ### Research Artifacts & Data Ledger (`research/`)
-* **Literature Matrix (244 papers with DOIs):** [`research/literature/literature_matrix.csv`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/research/literature/literature_matrix.csv)
-* **Real Consumer Complaint Corpus (1,050 cases):** [`research/complaints/complaint_evidence_matrix.csv`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/research/complaints/complaint_evidence_matrix.csv)
-* **Empirical Experiment Registry:** [`research/experiments/results_registry.csv`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/research/experiments/results_registry.csv)
-* **Figure & Visualization Inventory:** [`research/figures/figure_inventory.csv`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/research/figures/figure_inventory.csv)
-* **Claim Validation Ledger:** [`research/claims/claim_validation_ledger.csv`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/research/claims/claim_validation_ledger.csv)
+* **Literature Matrix (244 papers with DOIs):** [`research/literature/literature_matrix.csv`](literature_matrix.csv)
+* **Real Consumer Complaint Corpus (1,050 cases):** [`research/complaints/complaint_evidence_matrix.csv`](complaint_evidence_matrix.csv)
+* **Empirical Experiment Registry:** [`research/experiments/results_registry.csv`](results_registry.csv)
+* **Figure & Visualization Inventory:** [`research/figures/figure_inventory.csv`](figure_inventory.csv)
+* **Claim Validation Ledger:** [`research/claims/claim_validation_ledger.csv`](claim_validation_ledger.csv)
 
 ---
 

@@ -42,14 +42,14 @@ def test_metric_separation():
     assert attr_res['k'] == len(ALLOWED_ATTRIBUTIONS)
     assert dec_res['k'] == len(ALLOWED_DECISIONS)
     print(f"PASSED: Attribution kappa ({attr_res['kappa']:.4f}) and Decision kappa ({dec_res['kappa']:.4f}) calculated independently.\n")
-    return attr_res, dec_res
 
 def test_input_rejection():
     print("=== TEST 2: Input Rejection of Blank / Malformed Data ===")
     base_dir = os.path.dirname(__file__)
     
     # 1. Blank template rejection
-    blank_template = os.path.join(PARENT_DIR, "calibration_ratings_template.csv")
+    archive_template = os.path.join(PARENT_DIR, "..", "archive", "e3_reviewer_gate", "calibration_ratings_template.csv")
+    blank_template = archive_template if os.path.exists(archive_template) else os.path.join(PARENT_DIR, "calibration_ratings_template.csv")
     result = evaluate_calibration_ratings(blank_template)
     assert result is False, "Empty template must be rejected with False"
     print("Assertion Passed: Blank template correctly rejected.")

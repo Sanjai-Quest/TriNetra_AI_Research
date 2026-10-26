@@ -79,7 +79,7 @@ Located in `xscrapper/` and `xscrapper/xscrapper/complaint_mining/output/`, this
 
 ### 3.1 Corpus Summary
 * **Total Records:** 1,050 (271 preserved original records + 779 expanded records)
-* **Master File:** [`trinetra_real_complaints_expanded.csv`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/xscrapper/trinetra_real_complaints_expanded.csv) (1.04 MB)
+* **Master File:** [`trinetra_real_complaints_expanded.csv`](trinetra_real_complaints_expanded.csv) (1.04 MB)
 * **Number of Attributes:** 38 structured columns
 * **Synthetic Rows:** 0 (100% authentic dispute narratives)
 * **Completeness Score:** 0.85 / 1.00
@@ -202,13 +202,13 @@ Evaluated via `python phase-1/evaluate_real_complaints.py`:
 To address senior reviewer scrutiny regarding parameter selection and calibration:
 
 ### 8.1 Threshold Sensitivity Analysis
-Script: [`phase-1/evaluation/sensitivity_analysis.py`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/phase-1/evaluation/sensitivity_analysis.py)
+Script: [`phase-1/evaluation/sensitivity_analysis.py`](sensitivity_analysis.py)
 * Swept weight-drop cutoff from **5% to 30%** on held-out test split (200 cases).
 * Result: F1 Score remains rock-solid at **0.9444** and FNR at **0.1053** across all thresholds because genuine fraud scenarios exhibit $>40\%$ weight drop signatures.
 * Statistical significance vs. baseline maintained at **$p < 10^{-10}$** across the entire parameter space.
 
 ### 8.2 Confidence Score Calibration (ECE)
-Script: [`phase-1/evaluation/calibration_analysis.py`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/phase-1/evaluation/calibration_analysis.py)
+Script: [`phase-1/evaluation/calibration_analysis.py`](calibration_analysis.py)
 * Expected Calibration Error (ECE) evaluated across 10-bin reliability diagram.
 * **ECE = 0.0292** ($\le 0.05$ publication threshold).
 * Confirms that confidence scores (0.90–0.98) represent genuine physical consistency certainties rather than uncalibrated heuristic scores.

@@ -31,7 +31,7 @@ Your objective is to review the case facts, photographic descriptions, and scale
 
 ## 2. Standardized Adjudication Form Fields
 
-For each case, record your evaluation in [`calibration_ratings_template.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/calibration_ratings_template.csv):
+For each case, record your evaluation in [`calibration_ratings_template.csv`](research/reviewed_v2/calibration_ratings_template.csv):
 
 ### Field 1: Attribution Assessment ($\mathcal{A}$)
 Select exactly one mutually exclusive attribution option:

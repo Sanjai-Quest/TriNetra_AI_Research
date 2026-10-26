@@ -3,7 +3,7 @@
 > **Document Type:** Systematic Research Audit & Gap Assessment  
 > **Date:** 2026-10-24  
 > **Status:** Final Synthesis & Directional Decision  
-> **Primary Starting Sources:** [`India_Ecommerce_Research_Map_v1.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/literature_search_protocol.md) and [`closest_work_matrix.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/closest_work_matrix.csv)  
+> **Primary Starting Sources:** [`India_Ecommerce_Research_Map_v1.md`](research/literature_search_protocol.md) and [`closest_work_matrix.csv`](research/closest_work_matrix.csv)  
 
 ---
 

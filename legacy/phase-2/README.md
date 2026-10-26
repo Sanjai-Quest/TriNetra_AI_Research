@@ -14,12 +14,12 @@ Phase 2 scales the Phase 1 evidence reconciliation foundation into a **distribut
 ## 📑 Research Paper Cross-References & Tags
 
 For drafting the research paper, the Phase 2 system architecture, multi-modal processing formulas, and database schemas are tagged and indexed in:
-* **Master Research Document:** [`TRINETRA_AI_MASTER_RESEARCH_DOCUMENTATION.md`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/TRINETRA_AI_MASTER_RESEARCH_DOCUMENTATION.md) (Sections 12, 13, 14, 16, 17)
-* **Real Consumer Complaint Corpus (1,050 cases):** [`xscrapper/trinetra_real_complaints_expanded.csv`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/xscrapper/trinetra_real_complaints_expanded.csv)
-* **Microservices Parent POM:** [`phase-2/spring-services/pom.xml`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/phase-2/spring-services/pom.xml)
-* **Database Schema Extensions:** [`phase-2/schema/schema_extensions.sql`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/phase-2/schema/schema_extensions.sql)
-* **React Investigator Dashboard:** [`phase-2/frontend-react/`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/phase-2/frontend-react/)
-* **System Architecture Diagram:** [`research/figures/figure_inventory.csv`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/research/figures/figure_inventory.csv) (FIG-01)
+* **Master Research Document:** [`TRINETRA_AI_MASTER_RESEARCH_DOCUMENTATION.md`](TRINETRA_AI_MASTER_RESEARCH_DOCUMENTATION.md) (Sections 12, 13, 14, 16, 17)
+* **Real Consumer Complaint Corpus (1,050 cases):** [`xscrapper/trinetra_real_complaints_expanded.csv`](trinetra_real_complaints_expanded.csv)
+* **Microservices Parent POM:** [`phase-2/spring-services/pom.xml`](pom.xml)
+* **Database Schema Extensions:** [`phase-2/schema/schema_extensions.sql`](schema_extensions.sql)
+* **React Investigator Dashboard:** [`phase-2/frontend-react/`](frontend-react/)
+* **System Architecture Diagram:** [`research/figures/figure_inventory.csv`](figure_inventory.csv) (FIG-01)
 
 ---
 

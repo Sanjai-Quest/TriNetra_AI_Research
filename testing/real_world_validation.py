@@ -25,6 +25,11 @@ if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
+
+# Legacy execution blocker: prevent executing circular legacy validation script
+print("\n[BLOCKED] Execution blocked: real_world_validation.py is legacy evaluation code that relies on quarantined datasets and is disabled. Refer to legacy/README.md.")
+sys.exit(2)
+
 from datetime import datetime
 from collections import defaultdict, Counter
 

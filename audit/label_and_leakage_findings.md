@@ -27,8 +27,8 @@ Below is the exhaustive, evidence-backed breakdown of each finding with exact fi
 ## 2. Finding 1: Fabricated Consumer Grievance Corpus Masquerading as Real Data
 
 ### 2.1 The Generation Mechanism of the "Original 271" Dataset
-- **Affected File:** [`TriNetra_Mobile/TriNetra AI/xscrapper/xscrapper/complaint_mining/expand_master_dataset.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/TriNetra%20AI/xscrapper/xscrapper/complaint_mining/expand_master_dataset.py)
-- **Target File:** [`TriNetra_Mobile/datasets/customer_complaints_dataset.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/datasets/customer_complaints_dataset.csv) (271 rows)
+- **Affected File:** [`TriNetra_Mobile/TriNetra AI/xscrapper/xscrapper/complaint_mining/expand_master_dataset.py`](TriNetra%20AI/xscrapper/xscrapper/complaint_mining/expand_master_dataset.py)
+- **Target File:** [`TriNetra_Mobile/datasets/customer_complaints_dataset.csv`](datasets/customer_complaints_dataset.csv) (271 rows)
 
 #### Citation & Code Evidence:
 In `expand_master_dataset.py`, lines 39–118 define 4 template lists (`fashion_templates`, `electronics_templates`, `beauty_templates`, `general_templates`) comprising fewer than 30 distinct base grievance narratives. 
@@ -65,8 +65,8 @@ curr_id = max([int(r["Complaint_ID"].replace("CMP_", "")) for r in existing_rows
 The script was used to fill the dataset up to 271 rows. Every single URL in `customer_complaints_dataset.csv` matches this exact generation formula. For example, row 111 and row 254 generated `https://www.reddit.com/r/D2C BrandIn/comments/c00114/complaint/` containing an impossible space in the URL because `brand` was `"D2C Brand"`.
 
 ### 2.2 The 1,050 Record Expansion Pipeline
-- **Affected File:** [`TriNetra_Mobile/TriNetra AI/xscrapper/xscrapper/complaint_mining/build_trinetra_1000_corpus.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/TriNetra%20AI/xscrapper/xscrapper/complaint_mining/build_trinetra_1000_corpus.py)
-- **Target File:** [`TriNetra_Mobile/datasets/trinetra_real_complaints_expanded.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/datasets/trinetra_real_complaints_expanded.csv) (1,050 rows)
+- **Affected File:** [`TriNetra_Mobile/TriNetra AI/xscrapper/xscrapper/complaint_mining/build_trinetra_1000_corpus.py`](TriNetra%20AI/xscrapper/xscrapper/complaint_mining/build_trinetra_1000_corpus.py)
+- **Target File:** [`TriNetra_Mobile/datasets/trinetra_real_complaints_expanded.csv`](datasets/trinetra_real_complaints_expanded.csv) (1,050 rows)
 
 #### Citation & Code Evidence:
 Lines 51–137 define 37 dispute templates in `DISPUTE_SCENARIOS`. 
@@ -97,9 +97,9 @@ replies = random.randint(1, 45)
 
 ### 2.3 False Claims of Authenticity in Reports
 Despite 100% of these records being generated in Python loops:
-1. In [`dataset_and_literature_engineering_report.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/TriNetra%20AI/xscrapper/xscrapper/validation_report/dataset_and_literature_engineering_report.md) (lines 14, 75):
+1. In [`dataset_and_literature_engineering_report.md`](TriNetra%20AI/xscrapper/xscrapper/validation_report/dataset_and_literature_engineering_report.md) (lines 14, 75):
    > *"A multi-platform empirical dataset of 271 100% authentic real-world customer complaints across 5 major social/review channels... All legacy Bing noise has been completely purged."*
-2. In [`trinetra_complaint_quality_report.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/datasets/trinetra_complaint_quality_report.md) (lines 453, 509):
+2. In [`trinetra_complaint_quality_report.md`](datasets/trinetra_complaint_quality_report.md) (lines 453, 509):
    > *"- Synthetic Data Flag: 0% synthetic (100% authentic dispute narratives)"*  
    > *"1. Zero Hallucinated Facts: Every record reflects authentic consumer complaints and real dispute patterns."*
 
@@ -108,8 +108,8 @@ Despite 100% of these records being generated in Python loops:
 ## 3. Finding 2: Circular Ground Truth & Telemetry Injection
 
 ### 3.1 Mechanism of Fabrication
-- **Affected File:** [`TriNetra_Mobile/TriNetra AI/phase-1/data/build_real_dataset.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/TriNetra%20AI/phase-1/data/build_real_dataset.py)
-- **Target Files:** [`real_complaint_cases.json`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/TriNetra%20AI/phase-1/data/real_complaint_cases.json) and [`synthetic_evidence.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/TriNetra%20AI/phase-1/data/synthetic_evidence.csv)
+- **Affected File:** [`TriNetra_Mobile/TriNetra AI/phase-1/data/build_real_dataset.py`](TriNetra%20AI/phase-1/data/build_real_dataset.py)
+- **Target Files:** [`real_complaint_cases.json`](TriNetra%20AI/phase-1/data/real_complaint_cases.json) and [`synthetic_evidence.csv`](TriNetra%20AI/phase-1/data/synthetic_evidence.csv)
 
 The authors sought to benchmark their reconciliation engine on physical telemetry (weights, SKUs, and timestamps). Because consumer complaint posts on Reddit and Twitter do not contain warehouse scale readings, barcode scans, or carrier timestamps, the script manufactured them by parsing the synthetic text and injecting matching telemetry defects.
 
@@ -150,7 +150,7 @@ elif ctype == "TEMPORAL_CONFLICT":
 ```
 
 ### 3.2 Target Leakage Analysis
-The reconciliation engine in [`ReconciliationEngine`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/TriNetra%20AI/phase-1/engine/reconciliation_engine.py) checks:
+The reconciliation engine in [`ReconciliationEngine`](TriNetra%20AI/phase-1/engine/reconciliation_engine.py) checks:
 1. `if abs(return_weight - original_weight) / original_weight > 0.15` -> flags `WEIGHT_ANOMALY`.
 2. `if outbound_sku != return_sku` -> flags `IDENTITY_CONFLICT`.
 3. `if carrier_timestamp < warehouse_timestamp` -> flags `TEMPORAL_CONFLICT`.
@@ -164,8 +164,8 @@ This is **pure target leakage / label circularity**: the evaluation did not test
 ## 4. Finding 3: Target Leakage and Invariant Baselines
 
 ### 4.1 Rigged Single-Dimension Baselines
-- **Affected File:** [`TriNetra_Mobile/TriNetra AI/phase-1/evaluate_real_complaints.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/TriNetra%20AI/phase-1/evaluate_real_complaints.py)
-- **Output File:** [`TriNetra_Mobile/TriNetra AI/results/real_complaint_results.json`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/TriNetra%20AI/results/real_complaint_results.json)
+- **Affected File:** [`TriNetra_Mobile/TriNetra AI/phase-1/evaluate_real_complaints.py`](TriNetra%20AI/phase-1/evaluate_real_complaints.py)
+- **Output File:** [`TriNetra_Mobile/TriNetra AI/results/real_complaint_results.json`](TriNetra%20AI/results/real_complaint_results.json)
 
 In `evaluate_real_complaints.py`, TriNetra is compared against three baselines:
 - Baseline 1 (`Baseline1IdentityOnly`): Only checks SKU string equality. Blind to weight drops and timeline inversions.
@@ -191,7 +191,7 @@ This statistical significance is scientifically meaningless. A composite rule ch
 ## 5. Finding 4: Injected Risk Score Correlation
 
 ### 5.1 Hardcoded Demographic & Dispute Variables
-- **Affected File:** [`TriNetra_Mobile/TriNetra AI/phase-2/validation/validate_against_real_data.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/TriNetra%20AI/phase-2/validation/validate_against_real_data.py)
+- **Affected File:** [`TriNetra_Mobile/TriNetra AI/phase-2/validation/validate_against_real_data.py`](TriNetra%20AI/phase-2/validation/validate_against_real_data.py)
 
 In Phase 2, the team developed `RiskScoringService`, which calculates a 5-factor fraud risk score based on order price, buyer return rate, seller dispute rate, and evidence completeness.
 
@@ -230,8 +230,8 @@ The report asserts this proves that *"higher complaint severity correlates with 
 ## 6. Finding 5: Simulated Backend Verification & Latency Forgery
 
 ### 6.1 Fabricated Online Latencies When Service Was Dead
-- **Affected File:** [`TriNetra_Mobile/testing/real_world_validation.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/testing/real_world_validation.py)
-- **Target File:** [`TriNetra_Mobile/testing/validation_output/real_world_validation_report.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/testing/validation_output/real_world_validation_report.md)
+- **Affected File:** [`TriNetra_Mobile/testing/real_world_validation.py`](testing/real_world_validation.py)
+- **Target File:** [`TriNetra_Mobile/testing/validation_output/real_world_validation_report.md`](testing/validation_output/real_world_validation_report.md)
 
 In `real_world_validation.py`, 20 complaints were selected to test the live Spring Boot backend endpoint (`http://localhost:8080/api/claims/verdict`).
 
@@ -264,8 +264,8 @@ Simulating execution times and accuracy scores in an audit report when the backe
 ## 7. Finding 6: Cross-Contamination into Current V3 Logistics Verification
 
 ### 7.1 Injection of Fake Complaints into Authoritative Logistics Database
-- **Affected File:** [`TriNetra_Mobile/backend/src/main/resources/schema.sql`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/backend/src/main/resources/schema.sql) (lines 298–326)
-- **Reference Doc:** [`TriNetra_Mobile/REAL_DATA_DEMO.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/REAL_DATA_DEMO.md)
+- **Affected File:** [`TriNetra_Mobile/backend/src/main/resources/schema.sql`](backend/src/main/resources/schema.sql) (lines 298–326)
+- **Reference Doc:** [`TriNetra_Mobile/REAL_DATA_DEMO.md`](REAL_DATA_DEMO.md)
 
 The current V3 architecture (documented in `DECISION_ENGINE.md` and `UNIT_LIFECYCLE.md`) is designed for **pre-delivery physical verification**: serial numbers, IMEI checks, unbroken custody chains, and package seal inspection at sorting hubs.
 

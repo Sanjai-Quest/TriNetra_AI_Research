@@ -38,7 +38,7 @@ Below is the exhaustive audit of each result suite, identifying exact code depen
 ### 3.1 Suite 1: Phase 1 Real Complaint Evaluation (`real_complaint_results.json`)
 
 #### Recomputed Metrics vs. Saved File:
-Using our independent scratch audit script ([`reproduce_phase1.py`](file:///C:/Users/mitsu/.gemini/antigravity-ide/brain/2eee12ce-65d9-4965-a60d-e0760175bfa7/scratch/reproduce_phase1.py)), we recomputed the full confusion matrix from [`real_complaint_predictions.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/TriNetra%20AI/data/real_complaint_predictions.csv):
+Using our independent scratch audit script ([`reproduce_phase1.py`](reproduce_phase1.py)), we recomputed the full confusion matrix from [`real_complaint_predictions.csv`](TriNetra%20AI/data/real_complaint_predictions.csv):
 
 ```text
 Model         | Recomputed (TP, FP, TN, FN) | Saved in JSON           | Exact Match?
@@ -67,20 +67,20 @@ Although the arithmetic is 100% accurate, the underlying experiment is completel
 ### 3.2 Suite 4 & 5: Testing Gap Analysis & Simulated Backend Verification
 
 #### The "Dark Data Chasm" Fallacy:
-[`real_world_validation_report.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/testing/validation_output/real_world_validation_report.md) asserts:
+[`real_world_validation_report.md`](testing/validation_output/real_world_validation_report.md) asserts:
 > *"Weight / Scale Records Missing: 1050/1050 (100%)"*  
 > *"Warehouse Pack-Station CCTV Missing: 1050/1050 (100%)"*  
 > *"Carrier GPS Timestamps Missing: 1050/1050 (100%)"*  
 > *"In 36% of real disputes, investigators have ZERO measurable physical evidence."*
 
 #### Forensic Root Cause:
-In [`testing/real_world_validation.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/testing/real_world_validation.py), lines 72–74 calculate this gap by searching for keywords in the column `evidence_missing`:
+In [`testing/real_world_validation.py`](testing/real_world_validation.py), lines 72–74 calculate this gap by searching for keywords in the column `evidence_missing`:
 ```python
 weight_missing_count = sum(1 for r in records if "weight" in r.get("evidence_missing", "").lower())
 cctv_missing_count   = sum(1 for r in records if "cctv" in r.get("evidence_missing", "").lower())
 gps_missing_count    = sum(1 for r in records if "checkpoint" in r.get("evidence_missing", "").lower())
 ```
-Our audit script [`audit_tools.py`](file:///C:/Users/mitsu/.gemini/antigravity-ide/brain/2eee12ce-65d9-4965-a60d-e0760175bfa7/scratch/audit_tools.py) revealed that **1,050 out of 1,050 rows (100.0%) in `trinetra_real_complaints_expanded.csv` contain the exact identical hardcoded string**:
+Our audit script [`audit_tools.py`](audit_tools.py) revealed that **1,050 out of 1,050 rows (100.0%) in `trinetra_real_complaints_expanded.csv` contain the exact identical hardcoded string**:
 `"Continuous Unboxing Video; In-transit Checkpoint Weight Log; Pack-station CCTV"`
 
 The 100% "evidence gap" was not discovered by analyzing real carrier databases; it was a constant string assigned in `build_trinetra_1000_corpus.py` (line 330) and then re-read in `real_world_validation.py`.
@@ -105,7 +105,7 @@ When an independent researcher runs `real_world_validation.py` without starting 
 ### 3.3 Suite 6: End-to-End Synthetic Scenarios (`synthetic_disputes.csv`)
 
 #### Analysis:
-[`testing/synthetic_disputes.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/testing/synthetic_disputes.csv) contains 15 curated scenarios:
+[`testing/synthetic_disputes.csv`](testing/synthetic_disputes.csv) contains 15 curated scenarios:
 - `CLAIM-SYN-001` to `003`: Consistent returns
 - `CLAIM-SYN-004` to `007`: Weight anomalies (e.g. iPhone swap with 36% weight drop)
 - `CLAIM-SYN-008` to `009`: SKU swaps (e.g. `NIKE-123` returned as `NIKE-FAKE-456`)
@@ -115,7 +115,7 @@ When an independent researcher runs `real_world_validation.py` without starting 
 
 #### Findings:
 1. **Valid as a Unit Test:** When the V3 backend is running, sending these 15 payloads returns the expected status for all 15 cases. This is a functional regression test.
-2. **Invalid as a Research Result:** In [`testing/performance_report.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/testing/performance_report.md), this 15-row unit test is presented as a validation benchmark:
+2. **Invalid as a Research Result:** In [`testing/performance_report.md`](testing/performance_report.md), this 15-row unit test is presented as a validation benchmark:
    > *"Summary: 15/15 TESTS PASSED... F1-Score: 1.0000 (Perfect accuracy on synthetic data) READY FOR DEMO TUESDAY."*  
    Passing 15 unit tests is not validation of a decision system; treating 15 synthetic cases as an F1 score of 1.0000 misrepresents testing fixtures as empirical research results.
 
@@ -123,7 +123,7 @@ When an independent researcher runs `real_world_validation.py` without starting 
 
 ## 4. Critique of Official Government NCH Benchmark Comparison
 
-In [`datasets/trinetra_complaint_analysis.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/datasets/trinetra_complaint_analysis.md) (lines 620–634), the author presents a comparative table between the 1,050 generated complaints and official Indian Parliamentary records:
+In [`datasets/trinetra_complaint_analysis.md`](datasets/trinetra_complaint_analysis.md) (lines 620–634), the author presents a comparative table between the 1,050 generated complaints and official Indian Parliamentary records:
 
 | Dispute Category | Observed in Real Corpus (n=1,050) | NCH Parliamentary Data (n=397,333) | Claimed Alignment |
 |---|---|---|---|
@@ -137,7 +137,7 @@ The report concludes:
 
 ### Data Engineering Refutation:
 1. **The Numbers Do Not Match:** 44.4% vs 13.7% is a $3.2\times$ discrepancy; 47.0% vs 12.8% is a $3.7\times$ discrepancy. Labeling a $3.7\times$ difference as "Strongly Aligned" is mathematically unfounded.
-2. **Category Inflation:** In the 1,050 generated dataset, booleans are not mutually exclusive (a record can have `identity_conflict=True` and `refund_conflict=True` simultaneously). In the NCH parliamentary data ([`RS_Session_266_AU_2442_A.ii_.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/TriNetra%20AI/Public_Datasets/RS_Session_266_AU_2442_A.ii_.csv)), categories are mutually exclusive primary grievance classifications that sum to 100%. Comparing non-mutually exclusive keyword flags to a single-label government census is statistically invalid.
+2. **Category Inflation:** In the 1,050 generated dataset, booleans are not mutually exclusive (a record can have `identity_conflict=True` and `refund_conflict=True` simultaneously). In the NCH parliamentary data ([`RS_Session_266_AU_2442_A.ii_.csv`](TriNetra%20AI/Public_Datasets/RS_Session_266_AU_2442_A.ii_.csv)), categories are mutually exclusive primary grievance classifications that sum to 100%. Comparing non-mutually exclusive keyword flags to a single-label government census is statistically invalid.
 3. **Macro Aggregate vs. Micro Instance:** An aggregate table reporting 54,563 complaints in India cannot validate 1,050 generated text strings. Aggregate totals provide zero ground truth regarding individual serial numbers, return events, or package weights.
 
 ---
@@ -147,11 +147,11 @@ The report concludes:
 During the reproduction audit, several code and environment deficiencies were identified that impair reproducibility:
 
 1. **Hardcoded Windows Absolute Paths in Older Reports:**
-   Several validation files in `xscrapper` contain hardcoded paths referencing `c:/Users/mitsu/Downloads/xscrapper/...` (e.g. [`dataset_and_literature_engineering_report.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/TriNetra%20AI/xscrapper/xscrapper/validation_report/dataset_and_literature_engineering_report.md#L14)).
+   Several validation files in `xscrapper` contain hardcoded paths referencing `c:/Users/mitsu/Downloads/xscrapper/...` (e.g. [`dataset_and_literature_engineering_report.md`](TriNetra%20AI/xscrapper/xscrapper/validation_report/dataset_and_literature_engineering_report.md#L14)).
 2. **Missing Live Microservices Infrastructure:**
-   Phase 2 services (`claim-service`, `evidence-service`, `fraud-detection-engine`) require PostgreSQL, RabbitMQ, Redis, and MinIO defined in [`docker-compose.yml`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/TriNetra%20AI/phase-2/docker-compose.yml). They cannot be executed or tested directly without spinning up Docker containers and migrating databases.
+   Phase 2 services (`claim-service`, `evidence-service`, `fraud-detection-engine`) require PostgreSQL, RabbitMQ, Redis, and MinIO defined in [`docker-compose.yml`](TriNetra%20AI/phase-2/docker-compose.yml). They cannot be executed or tested directly without spinning up Docker containers and migrating databases.
 3. **Broken Script Execution from Non-Root CWD:**
-   In [`testing/real_world_validation.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/testing/real_world_validation.py) (line 27), `BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))`. If executed from `TriNetra AI/` instead of `TriNetra_Mobile/`, path resolution fails.
+   In [`testing/real_world_validation.py`](testing/real_world_validation.py) (line 27), `BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))`. If executed from `TriNetra AI/` instead of `TriNetra_Mobile/`, path resolution fails.
 4. **Encoding Issues on Standard Windows Consoles:**
    Scripts like `build_trinetra_1000_corpus.py` and `build_real_dataset.py` require `sys.stdout.reconfigure(encoding="utf-8")` because emojis and Unicode characters in generated texts crash default Windows `cp1252` terminal streams.
 
@@ -164,4 +164,4 @@ During the reproduction audit, several code and environment deficiencies were id
 2. **Can existing results be reproduced scientifically?**  
    **NO.** The inputs are synthetic fabrications, the ground-truth labels are circular, the baselines are deliberately crippled, and backend metrics were simulated.
 3. **Can the current V3 pre-delivery physical verification system be verified?**  
-   **YES.** The V3 backend unit test suite ([`V3DecisionEngineTest.java`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/backend/src/test/java/com/trinetra/verdict/service/V3DecisionEngineTest.java)) executes deterministically without external database or network dependencies, providing an authentic foundation for physical custody verification.
+   **YES.** The V3 backend unit test suite ([`V3DecisionEngineTest.java`](backend/src/test/java/com/trinetra/verdict/service/V3DecisionEngineTest.java)) executes deterministically without external database or network dependencies, providing an authentic foundation for physical custody verification.

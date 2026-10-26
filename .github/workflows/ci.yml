@@ -50,7 +50,7 @@ jobs:
         run: |
           pytest research/reviewed_v2/synthetic_calibration_dry_run/test_analysis_pipeline_safety.py
           pytest legacy/phase-1/tests/test_suite.py
-          pytest testing/ -k "not test_validation_exits_nonzero_when_backend_offline"
+          pytest testing/
 
   java-build:
     name: Backend Java Build (Optional / Non-blocking)

@@ -418,7 +418,7 @@ $$|W_{\text{obs}} - \mu_{\text{weight}}| > 3\sigma_{\text{weight}}$$
 
 ## 20. Synthetic Data Generation Methodology
 
-* **Script:** [`phase-1/generator/generate_data.py`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/phase-1/generator/generate_data.py)
+* **Script:** [`phase-1/generator/generate_data.py`](generate_data.py)
 * **Sample Size:** $N = 1,000$ discrete e-commerce order lifecycles.
 * **Random Seed:** Fixed to `SEED = 42` for exact reproducibility.
 * **Class Balance:**

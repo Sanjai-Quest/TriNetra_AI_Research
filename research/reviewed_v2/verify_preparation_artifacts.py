@@ -4,12 +4,13 @@ import pandas as pd
 import numpy as np
 
 DIR_PATH = os.path.abspath(os.path.dirname(__file__))
+ARCHIVE_GATE_DIR = os.path.abspath(os.path.join(DIR_PATH, "..", "archive", "e3_reviewer_gate"))
 LEDGER_PATH = os.path.join(DIR_PATH, "ground_truth_ledger_60.csv")
-CALIB_PATH = os.path.join(DIR_PATH, "calibration_ratings_template.csv")
+CALIB_PATH = os.path.join(ARCHIVE_GATE_DIR, "calibration_ratings_template.csv") if os.path.exists(os.path.join(ARCHIVE_GATE_DIR, "calibration_ratings_template.csv")) else os.path.join(DIR_PATH, "calibration_ratings_template.csv")
 PREREG_PATH = os.path.join(DIR_PATH, "preregistration_protocol_v2.5.md")
 PROTOCOL_PATH = os.path.join(DIR_PATH, "revised_experiment_protocol.md")
-REVIEWER_PACK_PATH = os.path.join(DIR_PATH, "calibration_reviewer_pack_10.md")
-ANSWER_KEY_PATH = os.path.join(DIR_PATH, "calibration_answer_key_restricted.md")
+REVIEWER_PACK_PATH = os.path.join(ARCHIVE_GATE_DIR, "calibration_reviewer_pack_10.md") if os.path.exists(os.path.join(ARCHIVE_GATE_DIR, "calibration_reviewer_pack_10.md")) else os.path.join(DIR_PATH, "calibration_reviewer_pack_10.md")
+ANSWER_KEY_PATH = os.path.join(ARCHIVE_GATE_DIR, "calibration_answer_key_restricted.md") if os.path.exists(os.path.join(ARCHIVE_GATE_DIR, "calibration_answer_key_restricted.md")) else os.path.join(DIR_PATH, "calibration_answer_key_restricted.md")
 OBS_TEMPLATE_PATH = os.path.join(DIR_PATH, "runtime_physical_observations_template.csv")
 MANIFEST_PATH = os.path.join(DIR_PATH, "ground_truth_commitment_manifest.json")
 

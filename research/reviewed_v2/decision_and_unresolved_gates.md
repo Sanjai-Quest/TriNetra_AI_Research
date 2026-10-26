@@ -28,7 +28,7 @@ A total deferral or project abandonment is unnecessary because:
 ### 1.3 Core Terms of the CONDITIONAL PIVOT
 - **Direction Anchored:** TriNetra will focus exclusively on **Direction 1: Handover Evidence Continuity & Cross-Stage Discrepancy Attribution** across forward OBD, return pickup, and warehouse receiving.
 - **Novelty Language Moderated:** No claims of "universal novelty" or "pioneering first study" will be made. The contribution is strictly framed as an exploratory investigation into cross-stage observation degradation and selective prediction.
-- **Physical Data Collection Frozen:** The Phase 1 experimental protocol ([`revised_experiment_protocol.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/revised_experiment_protocol.md)) will **not be executed physically** until Pre-Experimental Gates E-1, E-2, and E-3 are satisfied.
+- **Physical Data Collection Frozen:** The Phase 1 experimental protocol ([`revised_experiment_protocol.md`](research/reviewed_v2/revised_experiment_protocol.md)) will **not be executed physically** until Pre-Experimental Gates E-1, E-2, and E-3 are satisfied.
 
 ---
 
@@ -67,9 +67,9 @@ To prevent creating an artificial, indefinite block on running a physical pilot 
 
 | Gate ID | Target Domain | Specific Gate Requirement | Verification Artifact Prepared | Current Status | Experimental Blocking Ruling |
 |:---:|---|---|---|:---:|:---:|
-| **Gate E-1** | Protocol Preregistration | Frozen protocol version (v2.5.0) with an independently timestamped public Git commit hash | [`preregistration_protocol_v2.5.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/preregistration_protocol_v2.5.md) committed to Git | **CLEARED** | **UNBLOCKED** |
-| **Gate E-2** | Ground-Truth Cryptography | SHA-256 hash manifest committed to Git before physical staging; plaintext truth ledger strictly embargoed until trial completion | [`ground_truth_commitment_manifest.json`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/ground_truth_commitment_manifest.json) populated with verified hashes and committed | **CLEARED** | **UNBLOCKED** |
-| **Gate E-3** | Reviewer Readiness | 10-case text-based rubric calibration completed with four real independent Reviewers $R_1-R_4$ (Fleiss' $\kappa \ge 0.60$); separate unscored UI familiarization | [`calibration_reviewer_pack_10.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/calibration_reviewer_pack_10.md) & [`calibration_ratings_template.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/calibration_ratings_template.csv) prepared; trial unexecuted | **PENDING (Awaiting 4 Real Reviewers)** | **BLOCKING EXPERIMENT** |
+| **Gate E-1** | Protocol Preregistration | Frozen protocol version (v2.5.0) with an independently timestamped public Git commit hash | [`preregistration_protocol_v2.5.md`](research/reviewed_v2/preregistration_protocol_v2.5.md) committed to Git | **CLEARED** | **UNBLOCKED** |
+| **Gate E-2** | Ground-Truth Cryptography | SHA-256 hash manifest committed to Git before physical staging; plaintext truth ledger strictly embargoed until trial completion | [`ground_truth_commitment_manifest.json`](research/reviewed_v2/ground_truth_commitment_manifest.json) populated with verified hashes and committed | **CLEARED** | **UNBLOCKED** |
+| **Gate E-3** | Reviewer Readiness | 10-case text-based rubric calibration completed with four real independent Reviewers $R_1-R_4$ (Fleiss' $\kappa \ge 0.60$); separate unscored UI familiarization | [`calibration_reviewer_pack_10.md`](research/reviewed_v2/calibration_reviewer_pack_10.md) & [`calibration_ratings_template.csv`](research/reviewed_v2/calibration_ratings_template.csv) prepared; trial unexecuted | **PENDING (Awaiting 4 Real Reviewers)** | **BLOCKING EXPERIMENT** |
 
 > [!CAUTION]
 > **Pre-Experimental Gating Ruling:**  

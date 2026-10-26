@@ -68,7 +68,7 @@ Evaluated across **1,000 synthetic lifecycle cases**:
 
 ## 3. Phase 1: Evidence Reconciliation MVP
 
-Located in [`phase-1/`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/phase-1/):
+Located in [`phase-1/`](phase-1/):
 - **Canonical Normalizer:** Standardizes SKU formats, weights (grams/kg/lbs $\rightarrow$ grams), dimensions, and timestamps.
 - **Entity Resolution Engine:** Resolves vendor-specific barcodes/SKUs to canonical product UUIDs.
 - **Reconciliation Engine:** Deterministic rule engine cross-comparing attribute values across 5 lifecycle touchpoints.
@@ -120,7 +120,7 @@ Phase 2 scales the research MVP into an asynchronous, event-driven enterprise ar
 
 ## 5. Multi-Modal Computer Vision Pipeline
 
-Located in [`phase-2/services/multimodal_processor/main.py`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/phase-2/services/multimodal_processor/main.py):
+Located in [`phase-2/services/multimodal_processor/main.py`](main.py):
 - **Wear Detection:** Analyzes fabric wear and creases via OpenCV Canny edge density + HSV saturation loss + Laplacian texture variance. Zero large ML model download requirements.
 - **EXIF Extraction:** Reads camera make, timestamp, and GPS tags via Pillow.
 - **Color Consistency:** Analyzes RGB color distribution to verify that the returned product matches the expected catalog color.
@@ -130,7 +130,7 @@ Located in [`phase-2/services/multimodal_processor/main.py`](file:///c:/Users/mi
 
 ## 6. 4-Signal Fraud Detection Matrix
 
-Located in [`phase-2/spring-services/fraud-detection-engine/`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/phase-2/spring-services/fraud-detection-engine/):
+Located in [`phase-2/spring-services/fraud-detection-engine/`](fraud-detection-engine/):
 
 1. **Serial Fraudster (`HIGH`):** Flags customers with $\ge 7$ claims in the past 90 days. Cached in Redis with a 24-hour TTL.
 2. **Impossibly Fast Return (`CRITICAL`):** Flags returns initiated within $< 60$ minutes of delivery.
@@ -155,7 +155,7 @@ Located in [`phase-2/spring-services/fraud-detection-engine/`](file:///c:/Users/
 
 ## 8. React 18 + TypeScript Investigator Dashboard
 
-Located in [`phase-2/frontend-react/`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/phase-2/frontend-react/):
+Located in [`phase-2/frontend-react/`](frontend-react/):
 - **Live Queue:** Search claims by ID, order, or category; filter by status (`Pending Review`, `Approved`, `Rejected`, `Investigating`).
 - **Claim Inspector:** Real-time metrics, color-coded severity badges, automated reasoning viewer, and audit log.
 - **Investigator Override:** Modal form allowing manual verdict overrides with mandatory audit justifications.
@@ -164,7 +164,7 @@ Located in [`phase-2/frontend-react/`](file:///c:/Users/mitsu/Downloads/TriNetra
 
 ## 9. Database Schema Extensions
 
-Located in [`phase-2/schema/schema_extensions.sql`](file:///c:/Users/mitsu/Downloads/TriNetra%20AI/phase-2/schema/schema_extensions.sql):
+Located in [`phase-2/schema/schema_extensions.sql`](schema_extensions.sql):
 - `claims`
 - `evidence`
 - `evidence_artifacts`
