@@ -17,6 +17,9 @@ from trinetra_link.schema.models import CheckpointObservation, ImageRef, Journey
 from trinetra_link.staging.assign import assign_staging_cells
 from trinetra_link.staging.audit import compute_rule_audit_kappa, sample_journeys_for_audit
 from trinetra_link.staging.commit import commit_ground_truth_manifest
+from trinetra_link.eval.e1 import evaluate_e1
+from trinetra_link.eval.e2 import evaluate_e2
+from trinetra_link.eval.e3 import evaluate_e3
 from trinetra_link.staging.determinability import derive_ground_truth, get_determinability_rule_hash
 from trinetra_link.staging.log import StagingLogRecord, append_staging_log_entry, load_staging_log
 from trinetra_link.staging.pilot import evaluate_pilot_journeys
@@ -33,11 +36,13 @@ scale_app = typer.Typer(help="Scale characterisation and empirical noise fitting
 staging_app = typer.Typer(help="Physical staging cell assignment and manipulation logging")
 truth_app = typer.Typer(help="Ground-truth commitment, derivation, and audit (Gate G-2)")
 pilot_app = typer.Typer(help="Pilot journey verification and frozen quality floors (Gate G-3)")
+eval_app = typer.Typer(help="Empirical evaluation and baseline experiments (E1, E2, E3)")
 
 app.add_typer(scale_app, name="scale")
 app.add_typer(staging_app, name="staging")
 app.add_typer(truth_app, name="truth")
 app.add_typer(pilot_app, name="pilot")
+app.add_typer(eval_app, name="eval")
 
 
 # --- Root Commands ---
@@ -422,6 +427,127 @@ def pilot_check_alias_cmd(
 ) -> None:
     """Alias for 'trinetra pilot check'."""
     pilot_check_cmd(fixtures_file=fixtures_file, output=output)
+
+
+# --- Evaluation Subcommands ---
+
+@eval_app.command("e1")
+def eval_e1_cmd(
+    split: str = typer.Option("test", "--split", "-s", help="Dataset split to evaluate (must be test)"),
+    manifest: Optional[str] = typer.Option(None, "--manifest", "-m", help="Path to split_manifest.json"),
+    staging_log: Optional[str] = typer.Option(None, "--staging-log", help="Path to staging log CSV"),
+    scales: Optional[str] = typer.Option(None, "--scales", help="Path to scales.json"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Target output results directory"),
+    run_id: Optional[str] = typer.Option(None, "--run-id", help="Experiment run ID"),
+    bootstrap: int = typer.Option(2000, "--bootstrap", "-b", help="Bootstrap resamples for 95% CIs"),
+) -> None:
+    """Run Primary Benchmark Comparison against baselines B1..B5 on test split (E1)."""
+    if split != "test":
+        typer.secho(f"Error: E1 evaluation is strictly permitted only on 'test' split (received '{split}').", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        res = evaluate_e1(
+            split_manifest_path=manifest,
+            staging_log_path=staging_log,
+            scales_path=scales,
+            output_dir=output,
+            run_id=run_id,
+            b_bootstrap=bootstrap,
+        )
+        typer.secho(f"Experiment E1 Completed Successfully -> Run ID: {res['run_id']}", fg=typer.colors.GREEN)
+        typer.echo(f"  Artifacts saved to: {Path(res['artifacts']['csv_table']).parent}")
+        typer.echo(f"  Table III (CSV):    {res['artifacts']['csv_table']}")
+        typer.echo(f"  Table III (LaTeX):  {res['artifacts']['latex_table']}")
+        typer.echo(f"  Risk-Coverage Fig:  {res['artifacts']['figure_png']}")
+        typer.echo("\nSummary Results (Stage Accuracy & AAR):")
+        for row in res["results_summary"]:
+            typer.echo(f"  {row['method']:25s} | Acc (DET): {row['stage_acc_det']:.3f} {row['stage_acc_ci']} | AAR: {row['aar_non_det']:.3f}")
+    except Exception as e:
+        typer.secho(f"E1 evaluation failed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+
+@eval_app.command("e2")
+def eval_e2_cmd(
+    split: str = typer.Option("test", "--split", "-s", help="Dataset split to evaluate (must be test)"),
+    manifest: Optional[str] = typer.Option(None, "--manifest", "-m", help="Path to split_manifest.json"),
+    staging_log: Optional[str] = typer.Option(None, "--staging-log", help="Path to staging log CSV"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Target output results directory"),
+    run_id: Optional[str] = typer.Option(None, "--run-id", help="Experiment run ID"),
+) -> None:
+    """Run Controlled Perturbation Robustness Evaluation on test split (E2)."""
+    if split != "test":
+        typer.secho(f"Error: E2 evaluation is strictly permitted only on 'test' split (received '{split}').", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        res = evaluate_e2(
+            split_manifest_path=manifest,
+            staging_log_path=staging_log,
+            output_dir=output,
+            run_id=run_id,
+        )
+        typer.secho(f"Experiment E2 Completed Successfully -> Run ID: {res['run_id']}", fg=typer.colors.GREEN)
+        typer.echo(f"  Evaluated {res['conditions_evaluated']} perturbation conditions across {res['total_test_journeys']} journeys.")
+        typer.echo(f"  CSV Table:  {res['artifacts']['csv_table']}")
+        typer.echo(f"  LaTeX Table: {res['artifacts']['latex_table']}")
+        typer.echo(f"  Figure:     {res['artifacts']['figure_png']}")
+    except Exception as e:
+        typer.secho(f"E2 evaluation failed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+
+@eval_app.command("ablations")
+def eval_ablations_cmd(
+    split: str = typer.Option("test", "--split", "-s", help="Dataset split to evaluate (must be test)"),
+    manifest: Optional[str] = typer.Option(None, "--manifest", "-m", help="Path to split_manifest.json"),
+    staging_log: Optional[str] = typer.Option(None, "--staging-log", help="Path to staging log CSV"),
+    scales: Optional[str] = typer.Option(None, "--scales", help="Path to scales.json"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Target output results directory"),
+    run_id: Optional[str] = typer.Option(None, "--run-id", help="Experiment run ID"),
+) -> None:
+    """Run Architectural Component Ablation Study on test split (E3)."""
+    if split != "test":
+        typer.secho(f"Error: Ablation evaluation is strictly permitted only on 'test' split (received '{split}').", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        res = evaluate_e3(
+            split_manifest_path=manifest,
+            staging_log_path=staging_log,
+            scales_path=scales,
+            output_dir=output,
+            run_id=run_id,
+        )
+        typer.secho(f"Experiment E3 Completed Successfully -> Run ID: {res['run_id']}", fg=typer.colors.GREEN)
+        typer.echo(f"  CSV Table:   {res['artifacts']['csv_table']}")
+        typer.echo(f"  LaTeX Table: {res['artifacts']['latex_table']}")
+        typer.echo(f"  Figure:      {res['artifacts']['figure_png']}")
+        typer.echo("\nAblation Results Summary:")
+        for row in res["results"]:
+            typer.echo(f"  {row['model_variant']:35s} | Acc: {row['stage_acc_det']:.3f} | AAR: {row['aar_non_det']:.3f}")
+    except Exception as e:
+        typer.secho(f"E3 ablation evaluation failed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+
+@eval_app.command("all")
+def eval_all_cmd(
+    split: str = typer.Option("test", "--split", "-s", help="Dataset split to evaluate (must be test)"),
+    manifest: Optional[str] = typer.Option(None, "--manifest", "-m", help="Path to split_manifest.json"),
+    staging_log: Optional[str] = typer.Option(None, "--staging-log", help="Path to staging log CSV"),
+    scales: Optional[str] = typer.Option(None, "--scales", help="Path to scales.json"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Base output results directory"),
+) -> None:
+    """Run all empirical experiments (E1, E2, E3) in sequence on the test split."""
+    typer.echo("=== Starting Experiment E1: Primary Comparison ===")
+    eval_e1_cmd(split=split, manifest=manifest, staging_log=staging_log, scales=scales, output=output, run_id=None, bootstrap=2000)
+    typer.echo("\n=== Starting Experiment E2: Perturbations ===")
+    eval_e2_cmd(split=split, manifest=manifest, staging_log=staging_log, output=output, run_id=None)
+    typer.echo("\n=== Starting Experiment E3: Architectural Ablations ===")
+    eval_ablations_cmd(split=split, manifest=manifest, staging_log=staging_log, scales=scales, output=output, run_id=None)
+    typer.secho("\n[SUCCESS] All empirical evaluations (E1, E2, E3) completed successfully.", fg=typer.colors.GREEN)
 
 
 if __name__ == "__main__":

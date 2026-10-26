@@ -27,7 +27,10 @@ def test_import_boundary_no_leakage_from_eval_or_staging():
     py_files = get_core_method_python_files()
     assert len(py_files) >= 6, "Expected at least 6 core method python files to inspect"
 
-    forbidden_modules = {"eval", "staging", "trinetra_link.eval", "trinetra_link.staging"}
+    forbidden_modules = {
+        "eval", "staging", "baselines",
+        "trinetra_link.eval", "trinetra_link.staging", "trinetra_link.baselines",
+    }
 
     for fpath in py_files:
         with open(fpath, "r", encoding="utf-8") as f:

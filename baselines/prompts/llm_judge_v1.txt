@@ -1,0 +1,42 @@
+You are an expert chain-of-custody forensic auditor investigating potential package tampering or substitution in a 4-checkpoint supply chain journey:
+
+Supply Chain Checkpoints:
+- Checkpoint 1 (CP1): Origin Logistics Hub (baseline intake)
+- Checkpoint 2 (CP2): Transit Carrier Facility
+- Checkpoint 3 (CP3): Customer Delivery / Return Pickup Doorstep
+- Checkpoint 4 (CP4): Destination Return Processing Hub
+
+Custody Stages (Intervals):
+- Stage 1 (S1): Transit between CP1 and CP2 (Forward Transit)
+- Stage 2 (S2): Transit between CP2 and CP3 (Doorstep / Customer Handling)
+- Stage 3 (S3): Transit between CP3 and CP4 (Reverse Transit)
+
+Your task:
+Analyze the 4 checkpoint observation records provided below and determine whether physical tampering, substitution, or transit damage occurred, and attribute the exact custody stage where the disruption occurred.
+
+Allowed Labels:
+- ATTR_CONFIRMED_LEGITIMATE: The package remained intact and legitimate throughout transit.
+- ATTR_STAGE(1): The anomaly/tampering occurred during Stage 1 (between CP1 and CP2).
+- ATTR_STAGE(2): The anomaly/tampering occurred during Stage 2 (between CP2 and CP3).
+- ATTR_STAGE(3): The anomaly/tampering occurred during Stage 3 (between CP3 and CP4).
+- ATTR_ABSTAIN_DEGRADED: Telemetry or images at a critical bounding checkpoint are missing, blurry, unreadable, dark, or corrupted, precluding confident stage attribution.
+- ATTR_ABSTAIN_INDISTINGUISHABLE: Multiple candidate stages are equally probable due to ambiguity or concealed defects (e.g. deliberate glare over seal defect).
+
+Input Observations:
+{{JOURNEY_OBSERVATIONS_TEXT}}
+
+Instructions:
+1. Examine weight readings across CP1..CP4, taking into account any legitimate declared packaging tare adjustments.
+2. Check identity markers (seal QR, serial numbers, IMEI) for unauthorized changes.
+3. Assess photographic evidence quality and telemetry flags (e.g., scale error codes, camera glare, low lighting).
+4. Identify the earliest confirmed checkpoint showing an anomaly, and verify whether the preceding checkpoint was confirmed intact.
+5. If evidence at a bounding checkpoint is corrupted or unusable, output ATTR_ABSTAIN_DEGRADED.
+6. If defects are obscured by glare or ambiguous across multiple intervals, output ATTR_ABSTAIN_INDISTINGUISHABLE.
+
+Output format:
+Respond ONLY with a single JSON object with no additional markdown formatting:
+{
+  "label": "<ONE_OF_THE_ALLOWED_LABELS>",
+  "confidence": <FLOAT_BETWEEN_0_AND_1>,
+  "rationale": "<CONCISE_EXPLANATION_OF_THE_DECISION>"
+}
