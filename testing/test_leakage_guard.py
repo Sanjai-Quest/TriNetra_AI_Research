@@ -44,7 +44,7 @@ def test_phase1_target_leakage_detected():
     (COMPLAINT_TO_CONFLICT in build_real_dataset.py).
     Assert that the leakage guard detects F1 > 0.95 (actual 1.0000).
     """
-    path = os.path.join(REPO_ROOT, "TriNetra AI", "phase-1", "data", "real_complaint_labels.csv")
+    path = os.path.join(REPO_ROOT, "legacy", "phase-1", "data", "real_complaint_labels.csv")
     assert os.path.exists(path), f"File not found: {path}"
 
     df = pd.read_csv(path)
@@ -71,7 +71,7 @@ def test_leakage_guard_validator():
             )
         return score
 
-    path = os.path.join(REPO_ROOT, "TriNetra AI", "phase-1", "data", "real_complaint_labels.csv")
+    path = os.path.join(REPO_ROOT, "legacy", "phase-1", "data", "real_complaint_labels.csv")
     df = pd.read_csv(path)
 
     # Quarantined leaky dataset must be rejected by validator

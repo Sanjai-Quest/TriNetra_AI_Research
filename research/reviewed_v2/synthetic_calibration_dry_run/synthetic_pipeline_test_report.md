@@ -11,7 +11,7 @@
 
 ## 1. Objective & Scope
 
-This report documents the verification of the TriNetra Fleiss' Kappa agreement computation engine ([`compute_calibration_agreement.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/compute_calibration_agreement.py)) using an isolated synthetic test harness ([`test_analysis_pipeline_safety.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/test_analysis_pipeline_safety.py)).
+This report documents the verification of the TriNetra Fleiss' Kappa agreement computation engine ([`compute_calibration_agreement.py`](../compute_calibration_agreement.py)) using an isolated synthetic test harness ([`test_analysis_pipeline_safety.py`](./test_analysis_pipeline_safety.py)).
 
 The objective is to prove that the analysis pipeline:
 1. Calculates attribution-assessment Fleiss' kappa independently from operational decisions.
@@ -102,6 +102,6 @@ ALL 4 SYNTHETIC PIPELINE SAFETY TESTS PASSED WITH 100% SUCCESS!
 
 ## 4. Pipeline Readiness & Governance Boundaries
 
-1. **Verification Engine Ready:** The agreement analysis script [`compute_calibration_agreement.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/compute_calibration_agreement.py) is verified mathematically correct, robust against malformed input, and strictly separated across metrics.
+1. **Verification Engine Ready:** The agreement analysis script [`compute_calibration_agreement.py`](../compute_calibration_agreement.py) is verified mathematically correct, robust against malformed input, and strictly separated across metrics.
 2. **Strict Segregation Maintained:** All synthetic fixtures and results are isolated inside `research/reviewed_v2/synthetic_calibration_dry_run/`. No synthetic ratings have been introduced into the official calibration files.
 3. **Gate E-3 Governance Status:** Official Gate E-3 remains **PENDING** awaiting genuine human reviewer ratings.

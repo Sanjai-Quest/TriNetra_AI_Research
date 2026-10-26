@@ -20,17 +20,17 @@ This directory provides an isolated testing enclave to evaluate:
 
 | Deliverable File | Description | Classification |
 |:---|:---|:---:|
-| [`README.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/README.md) | Enclave overview, manifest, and governance restrictions | Documentation |
-| [`agent_A_evidence_first.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/agent_A_evidence_first.md) | Profile & system instructions for Agent A (Evidence-First Reviewer) | Configuration |
-| [`agent_B_alternative_explanations.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/agent_B_alternative_explanations.md) | Profile & system instructions for Agent B (Alternative-Explanation Reviewer) | Configuration |
-| [`agent_C_journey_stage.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/agent_C_journey_stage.md) | Profile & system instructions for Agent C (Journey-Stage Reviewer) | Configuration |
-| [`agent_D_uncertainty_abstention.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/agent_D_uncertainty_abstention.md) | Profile & system instructions for Agent D (Uncertainty & Abstention Reviewer) | Configuration |
-| [`synthetic_case_pack.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/synthetic_case_pack.md) | 10 diagnostic mock return cases (`DRYRUN-01` to `DRYRUN-10`) | Synthetic Data |
-| [`synthetic_agent_results.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/synthetic_agent_results.csv) | 40 structured evaluations rendered by the four AI agents | Synthetic Ratings |
-| [`synthetic_consistency_report.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/synthetic_consistency_report.md) | Diagnostic analysis of multi-agent agreement and classification divergences | Diagnostic Report |
-| [`synthetic_pipeline_test_report.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/synthetic_pipeline_test_report.md) | Formal test report verifying agreement math, metric decoupling, and input validation | Test Report |
-| [`run_synthetic_dry_run.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/run_synthetic_dry_run.py) | Python execution harness for isolated agent evaluation | Tooling / Script |
-| [`test_analysis_pipeline_safety.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/test_analysis_pipeline_safety.py) | Test fixture verifying 4 safety suites against analytical benchmarks | Tooling / Script |
+| [`README.md`](./README.md) | Enclave overview, manifest, and governance restrictions | Documentation |
+| [`agent_A_evidence_first.md`](./agent_A_evidence_first.md) | Profile & system instructions for Agent A (Evidence-First Reviewer) | Configuration |
+| [`agent_B_alternative_explanations.md`](./agent_B_alternative_explanations.md) | Profile & system instructions for Agent B (Alternative-Explanation Reviewer) | Configuration |
+| [`agent_C_journey_stage.md`](./agent_C_journey_stage.md) | Profile & system instructions for Agent C (Journey-Stage Reviewer) | Configuration |
+| [`agent_D_uncertainty_abstention.md`](./agent_D_uncertainty_abstention.md) | Profile & system instructions for Agent D (Uncertainty & Abstention Reviewer) | Configuration |
+| [`synthetic_case_pack.md`](./synthetic_case_pack.md) | 10 diagnostic mock return cases (`DRYRUN-01` to `DRYRUN-10`) | Synthetic Data |
+| [`synthetic_agent_results.csv`](./synthetic_agent_results.csv) | 40 structured evaluations rendered by the four AI agents | Synthetic Ratings |
+| [`synthetic_consistency_report.md`](./synthetic_consistency_report.md) | Diagnostic analysis of multi-agent agreement and classification divergences | Diagnostic Report |
+| [`synthetic_pipeline_test_report.md`](./synthetic_pipeline_test_report.md) | Formal test report verifying agreement math, metric decoupling, and input validation | Test Report |
+| [`run_synthetic_dry_run.py`](./run_synthetic_dry_run.py) | Python execution harness for isolated agent evaluation | Tooling / Script |
+| [`test_analysis_pipeline_safety.py`](./test_analysis_pipeline_safety.py) | Test fixture verifying 4 safety suites against analytical benchmarks | Tooling / Script |
 
 ## Key Diagnostic Findings & Implementation Classification
 

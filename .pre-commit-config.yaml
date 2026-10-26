@@ -9,3 +9,9 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: trinetra-data-linter
+        name: TriNetra Data Integrity Linter
+        entry: python scripts/data_lint.py
+        language: system
+        pass_filenames: false
+        always_run: true

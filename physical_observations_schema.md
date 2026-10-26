@@ -1,9 +1,8 @@
 # TriNetra Physical Observations Schema & Protocol Specification
 
-> **Document Version:** 1.0.0  
-> **Date:** 2026-10-23  
-> **Status:** Implementation Baseline (Remediation C-15, Section 6)  
-> **Reference:** [remediation_plan.md](file:///C:/Users/mitsu/.gemini/antigravity-ide/brain/2eee12ce-65d9-4965-a60d-e0760175bfa7/remediation_plan.md) §6.1–6.3  
+> **STATUS: SUPERSEDED BY TRINETRA-LINK (PHASE 1 SCHEMA)**  
+> **NOTICE:** This document describes an exploratory pre-delivery study draft that contradicts the preregistered multi-checkpoint return dispute custody protocol (CP1 seller dispatch → CP2 delivery / OBD → CP3 return pickup → CP4 warehouse intake; Stages S1–S3).  
+> It is superseded by the TriNetra-Link schema implemented in `trinetra_link/schema/` (Phase 1) and exported to `docs/schema/`. Kept for historical auditability only. Do not use for active data collection or evaluation.
 
 ---
 

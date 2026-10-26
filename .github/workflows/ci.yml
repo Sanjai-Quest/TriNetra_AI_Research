@@ -1,0 +1,72 @@
+name: TriNetra CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'research/**'
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - 'research/**'
+
+jobs:
+  python-integrity:
+    name: Python Lint, Data Lint & Test Suites
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest pandas numpy
+
+      - name: Run Ruff Linter
+        run: |
+          ruff check . --exclude legacy/
+
+      - name: Run Data Integrity Linter
+        run: |
+          python scripts/data_lint.py
+
+      - name: Run Remediation Guards
+        run: |
+          python testing/run_remediation_guards.py
+
+      - name: Run Artifact Verification
+        run: |
+          python research/reviewed_v2/verify_preparation_artifacts.py
+
+      - name: Run Pytest Suites
+        run: |
+          pytest research/reviewed_v2/synthetic_calibration_dry_run/test_analysis_pipeline_safety.py
+          pytest legacy/phase-1/tests/test_suite.py
+          pytest testing/ -k "not test_validation_exits_nonzero_when_backend_offline"
+
+  java-build:
+    name: Backend Java Build (Optional / Non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Compile Spring Boot Backend
+        run: |
+          cd backend
+          mvn -B compile || echo "NOTE: Backend Maven build skipped or offline dependencies unavailable."

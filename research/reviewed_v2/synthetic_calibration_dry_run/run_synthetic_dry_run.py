@@ -1,8 +1,8 @@
 """
-TriNetra AI: Synthetic Reviewer Agent Dry-Run Execution Harness
+TriNetra AI: Synthetic Reviewer Dry-Run Execution Harness
 Protocol Version: 2.5.0 (Synthetic Rehearsal Mode)
 
-Executes four independent synthetic AI reviewer agents (Agent A, B, C, D)
+Executes four synthetic reviewer profiles (deterministic rule mappings: Profile A, B, C, D)
 against 10 diagnostic mock cases (DRYRUN-01 to DRYRUN-10).
 Validates schema, checks consistency, and tests agreement calculation.
 
@@ -12,7 +12,6 @@ DOES NOT CLEAR GATE E-3.
 
 import os
 import sys
-import time
 import json
 import numpy as np
 import pandas as pd
@@ -45,7 +44,6 @@ ALLOWED_DECISIONS = [
 # Synthetic agent decision definitions
 def evaluate_agent_a(case_id):
     """Agent A: Evidence-First Reviewer (Strict literal evidence matching)"""
-    start_time = time.perf_counter()
     # Case logic based on positive explicit evidence
     mapping = {
         "DRYRUN-01": (
@@ -110,20 +108,17 @@ def evaluate_agent_a(case_id):
         ),
     }
     attr, dec, conf, notes = mapping[case_id]
-    elapsed = round(time.perf_counter() - start_time, 6)
     return {
         "case_id": case_id,
         "reviewer_id": "AGENT_A",
         "attribution_assessment": attr,
         "operational_decision": dec,
         "confidence_score": conf,
-        "execution_duration_sec": elapsed,
         "justification_notes": notes
     }
 
 def evaluate_agent_b(case_id):
     """Agent B: Alternative-Explanation Reviewer (Multi-hypothesis auditing)"""
-    start_time = time.perf_counter()
     mapping = {
         "DRYRUN-01": (
             "ATTR_CONFIRMED_LEGITIMATE",
@@ -187,20 +182,17 @@ def evaluate_agent_b(case_id):
         ),
     }
     attr, dec, conf, notes = mapping[case_id]
-    elapsed = round(time.perf_counter() - start_time, 6)
     return {
         "case_id": case_id,
         "reviewer_id": "AGENT_B",
         "attribution_assessment": attr,
         "operational_decision": dec,
         "confidence_score": conf,
-        "execution_duration_sec": elapsed,
         "justification_notes": notes
     }
 
 def evaluate_agent_c(case_id):
     """Agent C: Journey-Stage Reviewer (Longitudinal custody boundary tracking)"""
-    start_time = time.perf_counter()
     mapping = {
         "DRYRUN-01": (
             "ATTR_CONFIRMED_LEGITIMATE",
@@ -264,20 +256,17 @@ def evaluate_agent_c(case_id):
         ),
     }
     attr, dec, conf, notes = mapping[case_id]
-    elapsed = round(time.perf_counter() - start_time, 6)
     return {
         "case_id": case_id,
         "reviewer_id": "AGENT_C",
         "attribution_assessment": attr,
         "operational_decision": dec,
         "confidence_score": conf,
-        "execution_duration_sec": elapsed,
         "justification_notes": notes
     }
 
 def evaluate_agent_d(case_id):
     """Agent D: Uncertainty and Abstention Reviewer (Noise filtering and abstention safeguard)"""
-    start_time = time.perf_counter()
     mapping = {
         "DRYRUN-01": (
             "ATTR_CONFIRMED_LEGITIMATE",
@@ -341,14 +330,12 @@ def evaluate_agent_d(case_id):
         ),
     }
     attr, dec, conf, notes = mapping[case_id]
-    elapsed = round(time.perf_counter() - start_time, 6)
     return {
         "case_id": case_id,
         "reviewer_id": "AGENT_D",
         "attribution_assessment": attr,
         "operational_decision": dec,
         "confidence_score": conf,
-        "execution_duration_sec": elapsed,
         "justification_notes": notes
     }
 
@@ -394,7 +381,7 @@ def main():
     ]
     
     results = []
-    print("--- Executing Synthetic AI Reviewer Agents (Isolated Contexts) ---")
+    print("--- Executing Synthetic Reviewers (Deterministic Rule Mappings) ---")
     for agent_id, eval_fn in agents:
         print(f"Executing {agent_id} across 10 cases...")
         for case in cases:
@@ -405,7 +392,6 @@ def main():
             assert res['attribution_assessment'] in ALLOWED_ATTRIBUTIONS, f"Invalid attr: {res['attribution_assessment']}"
             assert res['operational_decision'] in ALLOWED_DECISIONS, f"Invalid dec: {res['operational_decision']}"
             assert 1 <= res['confidence_score'] <= 5
-            assert isinstance(res['execution_duration_sec'], (int, float))
             assert len(res['justification_notes']) > 10
             results.append(res)
             

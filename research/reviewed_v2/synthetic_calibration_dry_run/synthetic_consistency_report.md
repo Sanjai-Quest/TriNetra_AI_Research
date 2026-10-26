@@ -10,7 +10,7 @@
 
 ## 1. Execution Reality: Deterministic Simulation vs. Model Invocations
 
-An exhaustive audit of [`run_synthetic_dry_run.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/run_synthetic_dry_run.py) establishes:
+An exhaustive audit of [`run_synthetic_dry_run.py`](./run_synthetic_dry_run.py) establishes:
 
 1. **No Independent Model Calls Occurred:**
    - The four synthetic reviewers (`AGENT_A`, `AGENT_B`, `AGENT_C`, `AGENT_D`) were **not** independent model invocations, separate LLM contexts, or dynamic reasoning agents.
@@ -20,13 +20,13 @@ An exhaustive audit of [`run_synthetic_dry_run.py`](file:///c:/Users/mitsu/Downl
    - The implementation is formally classified as a **deterministic synthetic simulation of pre-authored diagnostic rule sets**, not a multi-agent AI deliberation.
 3. **Timing Rectification:**
    - The initial harness introduced artificial timing offsets (`+ 0.12s`, `+ 0.15s`, `+ 0.14s`, `+ 0.16s`) to mimic realistic execution delays.
-   - **Correction Applied:** All artificial offsets have been eliminated. The field has been renamed from `review_duration_sec` to `execution_duration_sec` in [`synthetic_agent_results.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/synthetic_agent_results.csv), recording purely the measured program dictionary-lookup duration ($<10^{-5}\text{s}$).
+   - **Correction Applied:** All artificial offsets have been eliminated. The field has been renamed from `review_duration_sec` to `execution_duration_sec` in [`synthetic_agent_results.csv`](./synthetic_agent_results.csv), recording purely the measured program dictionary-lookup duration ($<10^{-5}\text{s}$).
 
 ---
 
 ## 2. Comprehensive Factual Support Audit of Justifications
 
-All 40 synthetic justifications were audited against the factual records in [`synthetic_case_pack.md`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/synthetic_case_pack.md). The audit identified multiple instances of unsupported inferences, epistemic overstatements, and confusion between detection point and discrepancy origin:
+All 40 synthetic justifications were audited against the factual records in [`synthetic_case_pack.md`](./synthetic_case_pack.md). The audit identified multiple instances of unsupported inferences, epistemic overstatements, and confusion between detection point and discrepancy origin:
 
 ### Audit Finding 1: Confusion Between Detection Point and Tampering Origin (`DRYRUN-03`)
 - **Case Evidence:** At $CP_2$ delivery, courier photo captures an unbranded brown box with marker text substituted for the branded box ($\Delta W = -82.5\text{g}$). Handover was rejected immediately on the spot by the customer.
@@ -65,7 +65,7 @@ All 40 synthetic justifications were audited against the factual records in [`sy
 
 ## 3. Reassessment of Synthetic Agreement Interpretation
 
-The Fleiss' kappa agreement scores computed from [`synthetic_agent_results.csv`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/synthetic_calibration_dry_run/synthetic_agent_results.csv) are:
+The Fleiss' kappa agreement scores computed from [`synthetic_agent_results.csv`](./synthetic_agent_results.csv) are:
 - **Attribution Assessment Agreement:** Fleiss' $\kappa_{\text{attr}} = \mathbf{0.8841}$ ($\bar{P} = 0.9000, \bar{P}_e = 0.1375$)
 - **Operational Decision Agreement:** Fleiss' $\kappa_{\text{dec}} = \mathbf{0.9337}$ ($\bar{P} = 0.9500, \bar{P}_e = 0.2462$)
 
@@ -84,7 +84,7 @@ The Fleiss' kappa agreement scores computed from [`synthetic_agent_results.csv`]
 
 ## 4. Software Validation Gaps Identified & Remediated
 
-Inspection of [`compute_calibration_agreement.py`](file:///c:/Users/mitsu/Downloads/TriNetra_Mobile_FIXED/TriNetra_Mobile/research/reviewed_v2/compute_calibration_agreement.py) and the test suite revealed three software validation gaps that have now been resolved:
+Inspection of [`compute_calibration_agreement.py`](../compute_calibration_agreement.py) and the test suite revealed three software validation gaps that have now been resolved:
 
 | Gaps Identified in Original Test Suite | Remediation Implemented | Verification Test Added |
 |:---|:---|:---|

@@ -18,6 +18,13 @@ import re
 import time
 import urllib.request
 import urllib.error
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 from datetime import datetime
 from collections import defaultdict, Counter
 
@@ -25,8 +32,8 @@ from collections import defaultdict, Counter
 # PATHS
 # ---------------------------------------------------------------------------
 BASE_DIR     = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATASET_FILE = os.path.join(BASE_DIR, "datasets", "trinetra_real_complaints_expanded.csv")
-OUTPUT_DIR   = os.path.join(BASE_DIR, "testing", "validation_output")
+DATASET_FILE = os.path.join(BASE_DIR, "legacy", "datasets", "trinetra_real_complaints_expanded.csv")
+OUTPUT_DIR   = os.path.join(BASE_DIR, "legacy", "validation_output")
 BACKEND_URL  = "http://localhost:8080/api/claims/verdict"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)

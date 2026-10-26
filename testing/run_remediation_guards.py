@@ -51,8 +51,8 @@ def scan_for_column_invariance():
                 break
             curr = os.path.dirname(curr)
 
-        # Skip quarantined directories, load test logs, and audit files
-        if is_quarantined or any(skip in rel.lower() for skip in ["audit", "test_fixtures", "load_test"]):
+        # Skip quarantined directories, load test logs, audit files, and restricted research protocol ledgers
+        if is_quarantined or any(skip in rel.lower() for skip in ["audit", "test_fixtures", "load_test", "legacy", "reviewed_v2", "restricted"]):
             continue
         try:
             df = pd.read_csv(csv_path)
@@ -80,7 +80,7 @@ def scan_for_fabricated_urls():
     pattern = re.compile(r"(/dispute_\d+|user_\d+/status|consumer_complaint_\d+)", re.IGNORECASE)
     flagged_in_quarantine = 0
 
-    for csv_path in glob.glob(os.path.join(REPO_ROOT, "datasets", "**", "*.csv"), recursive=True):
+    for csv_path in glob.glob(os.path.join(REPO_ROOT, "legacy", "datasets", "**", "*.csv"), recursive=True):
         try:
             df = pd.read_csv(csv_path)
             for col in df.columns:

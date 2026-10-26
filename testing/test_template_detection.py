@@ -65,7 +65,7 @@ def find_high_overlap_pairs(texts: pd.Series, threshold: float = 0.80, max_compa
 
 def test_customer_complaints_flagged_for_template_generation():
     """Confirms template overlap detection on customer_complaints_dataset.csv."""
-    path = os.path.join(REPO_ROOT, "datasets", "customer_complaints_dataset.csv")
+    path = os.path.join(REPO_ROOT, "legacy", "datasets", "customer_complaints_dataset.csv")
     assert os.path.exists(path), f"File not found: {path}"
 
     df = pd.read_csv(path)
@@ -81,7 +81,7 @@ def test_customer_complaints_flagged_for_template_generation():
 
 def test_expanded_complaints_flagged_for_template_generation():
     """Confirms template overlap detection on trinetra_real_complaints_expanded.csv."""
-    path = os.path.join(REPO_ROOT, "datasets", "trinetra_real_complaints_expanded.csv")
+    path = os.path.join(REPO_ROOT, "legacy", "datasets", "trinetra_real_complaints_expanded.csv")
     assert os.path.exists(path), f"File not found: {path}"
 
     df = pd.read_csv(path)
@@ -108,7 +108,7 @@ def test_template_guard_validator():
             )
         return True
 
-    df = pd.read_csv(os.path.join(REPO_ROOT, "datasets", "customer_complaints_dataset.csv"))
+    df = pd.read_csv(os.path.join(REPO_ROOT, "legacy", "datasets", "customer_complaints_dataset.csv"))
     with pytest.raises(ValueError, match="TEMPLATE GUARD VIOLATION"):
         assert_not_template_generated(df, "Complaint_Text")
 

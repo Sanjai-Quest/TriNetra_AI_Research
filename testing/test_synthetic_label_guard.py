@@ -18,12 +18,12 @@ import pytest
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 QUARANTINE_DIRECTORIES = [
-    os.path.join(REPO_ROOT, "datasets"),
-    os.path.join(REPO_ROOT, "TriNetra AI", "xscrapper"),
-    os.path.join(REPO_ROOT, "TriNetra AI", "phase-1", "data"),
-    os.path.join(REPO_ROOT, "TriNetra AI", "data"),
-    os.path.join(REPO_ROOT, "TriNetra AI", "results"),
-    os.path.join(REPO_ROOT, "TriNetra AI", "phase-2", "validation", "data"),
+    os.path.join(REPO_ROOT, "legacy", "datasets"),
+    os.path.join(REPO_ROOT, "legacy", "xscrapper"),
+    os.path.join(REPO_ROOT, "legacy", "phase-1", "data"),
+    os.path.join(REPO_ROOT, "legacy", "data"),
+    os.path.join(REPO_ROOT, "legacy", "results"),
+    os.path.join(REPO_ROOT, "legacy", "phase-2", "validation", "data"),
 ]
 
 
@@ -95,7 +95,7 @@ def test_production_intake_guard():
         return True
 
     # Quarantined file must be rejected
-    sample_quarantined = os.path.join(REPO_ROOT, "datasets", "customer_complaints_dataset.csv")
+    sample_quarantined = os.path.join(REPO_ROOT, "legacy", "datasets", "customer_complaints_dataset.csv")
     with pytest.raises(ValueError, match="GUARD REJECTION"):
         validate_dataset_for_production(sample_quarantined)
 

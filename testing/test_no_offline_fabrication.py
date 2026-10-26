@@ -33,12 +33,14 @@ def test_validation_exits_nonzero_when_backend_offline():
     env = os.environ.copy()
     # Override any proxy that might interfere
     env.pop("HTTP_PROXY", None)
-    env.pop("http_proxy", None)
+    env["PYTHONIOENCODING"] = "utf-8"
 
     result = subprocess.run(
         [sys.executable, VALIDATION_SCRIPT],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=120,
         env=env,
         cwd=TESTING_DIR,
