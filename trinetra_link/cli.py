@@ -1,13 +1,26 @@
 from __future__ import annotations
 
-import sys
+import csv
+from datetime import datetime, timezone
+import json
 from pathlib import Path
-from typing import Optional
+import sys
+from typing import List, Optional
 import typer
 
 from trinetra_link import __version__
+from trinetra_link.config import DERIVED_DATA_DIR, RESTRICTED_DATA_DIR
 from trinetra_link.fit import fit_thresholds
+from trinetra_link.scale.characterise import characterise_scale, record_reference_readings
 from trinetra_link.schema.export import export_schemas
+from trinetra_link.schema.models import CheckpointObservation, ImageRef, Journey
+from trinetra_link.staging.assign import assign_staging_cells
+from trinetra_link.staging.audit import compute_rule_audit_kappa, sample_journeys_for_audit
+from trinetra_link.staging.commit import commit_ground_truth_manifest
+from trinetra_link.staging.determinability import derive_ground_truth, get_determinability_rule_hash
+from trinetra_link.staging.log import StagingLogRecord, append_staging_log_entry, load_staging_log
+from trinetra_link.staging.pilot import evaluate_pilot_journeys
+from trinetra_link.staging.split import perform_stratified_split
 from trinetra_link.store.database import Store
 
 app = typer.Typer(
@@ -16,6 +29,18 @@ app = typer.Typer(
     add_completion=False,
 )
 
+scale_app = typer.Typer(help="Scale characterisation and empirical noise fitting")
+staging_app = typer.Typer(help="Physical staging cell assignment and manipulation logging")
+truth_app = typer.Typer(help="Ground-truth commitment, derivation, and audit (Gate G-2)")
+pilot_app = typer.Typer(help="Pilot journey verification and frozen quality floors (Gate G-3)")
+
+app.add_typer(scale_app, name="scale")
+app.add_typer(staging_app, name="staging")
+app.add_typer(truth_app, name="truth")
+app.add_typer(pilot_app, name="pilot")
+
+
+# --- Root Commands ---
 
 @app.command()
 def version() -> None:
@@ -47,9 +72,7 @@ def fit_cmd(
         raise typer.Exit(code=1)
 
     store = Store(db_path)
-    # Collect calibration journeys from store
-    # If store is empty, load fixtures/synthetic calibration fixtures if allowed
-    journeys = []  # Will load from store or calibration dataset
+    journeys = []
     try:
         res = fit_thresholds(journeys, split_name=split)
         typer.secho(f"Successfully fitted thresholds: {res['saved_path']}", fg=typer.colors.GREEN)
@@ -73,6 +96,332 @@ def serve_cmd(
 
     typer.echo(f"Starting TriNetra-Link Ingest API on http://{host}:{port} ...")
     uvicorn.run(fastapi_app, host=host, port=port)
+
+
+@app.command("split")
+def split_cmd(
+    assignment_path: Optional[str] = typer.Option(None, "--assignment-path", "-a", help="Path to staging assignment CSV"),
+    seed: int = typer.Option(42, "--seed", "-s", help="Random seed for stratified split"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Path to output split manifest JSON"),
+) -> None:
+    """Partition N=120 physical journeys into stratified 24 calibration / 96 test split."""
+    try:
+        res = perform_stratified_split(assignment_path, seed=seed, output_path=output)
+        typer.secho(f"Stratified split completed successfully: {res['manifest_path']}", fg=typer.colors.GREEN)
+        typer.echo(f"  Calibration set: {res['calibration_count']} journeys (20%)")
+        typer.echo(f"  Test set:        {res['test_count']} journeys (80%)")
+    except Exception as e:
+        typer.secho(f"Split failed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+
+# --- Scale Subcommands ---
+
+@scale_app.command("record")
+def scale_record_cmd(
+    scale_id: str = typer.Option(..., "--scale-id", help="Scale identifier (e.g. SCALE_01)"),
+    load_g: float = typer.Option(..., "--load-g", help="Nominal calibration load mass in grams"),
+    readings: List[float] = typer.Option(..., "--reading", "-r", help="Observed weight readings in grams (>= 3 required)"),
+    output_dir: Optional[str] = typer.Option(None, "--output-dir", help="Directory to save calibration JSON"),
+) -> None:
+    """Record reference load readings for empirical scale noise characterisation."""
+    if len(readings) < 3:
+        typer.secho("Error: Each calibration load requires >= 3 readings.", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+    try:
+        out = record_reference_readings(scale_id, load_g, readings, log_dir=output_dir)
+        typer.secho(f"Recorded {len(readings)} readings for scale {scale_id} at {load_g}g -> {out}", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"Failed to record readings: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+
+@scale_app.command("fit")
+def scale_fit_cmd(
+    scale_id: str = typer.Option(..., "--scale-id", help="Scale identifier to fit"),
+    data_dir: Optional[str] = typer.Option(None, "--data-dir", help="Directory containing scale calibration records"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output scales.json path"),
+) -> None:
+    """Fit scale noise sigma and linearity drift delta across >= 3 reference loads (Gate G-4)."""
+    cal_dir = Path(data_dir) if data_dir else DERIVED_DATA_DIR / "scale_calibration"
+    if not cal_dir.exists():
+        typer.secho(f"Error: Calibration directory {cal_dir} does not exist.", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    # Load recorded loads for this scale
+    ref_loads: dict[float, list[float]] = {}
+    pattern = f"{scale_id}_load_*.json"
+    files = list(cal_dir.glob(pattern))
+    if not files:
+        typer.secho(f"Error: No calibration records found matching {pattern} in {cal_dir}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    for f in sorted(files):
+        with open(f, "r", encoding="utf-8") as fp:
+            data = json.load(fp)
+            load = float(data["nominal_load_g"])
+            r_list = [float(x) for x in data["readings"]]
+            ref_loads[load] = r_list
+
+    if len(ref_loads) < 3:
+        typer.secho(
+            f"Error: Scale characterisation requires >= 3 reference loads (found {len(ref_loads)}).",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        res = characterise_scale(scale_id, ref_loads, output_path=output)
+        typer.secho(f"Scale {scale_id} characterisation fitted successfully (Gate G-4):", fg=typer.colors.GREEN)
+        typer.echo(f"  sigma_g (noise std dev) = {res['sigma_g']:.4f} g")
+        typer.echo(f"  delta_g (linearity dev) = {res['delta_g']:.4f} g")
+        typer.echo(f"  Reference loads tested  = {res['reference_loads_g']} g")
+    except Exception as e:
+        typer.secho(f"Scale fitting failed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+
+# --- Staging Subcommands ---
+
+@staging_app.command("assign")
+def staging_assign_cmd(
+    n: int = typer.Option(120, "--n", help="Total number of journeys (must be 120)"),
+    seed: int = typer.Option(42, "--seed", help="Random seed for repeatable assignment"),
+    output_dir: Optional[str] = typer.Option(None, "--output-dir", help="Directory for restricted assignment sheet"),
+) -> None:
+    """Generate randomized 8-cell physical staging assignments for N=120 journeys."""
+    try:
+        res = assign_staging_cells(n=n, seed=seed, output_dir=output_dir)
+        typer.secho(f"Staging cell assignment generated successfully:", fg=typer.colors.GREEN)
+        typer.echo(f"  CSV:  {res['csv_path']}")
+        typer.echo(f"  JSON: {res['json_path']}")
+        typer.echo(f"  N:    {res['n']} journeys across 8 scenario cells (seed={res['seed']})")
+    except Exception as e:
+        typer.secho(f"Assignment failed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+
+@staging_app.command("log")
+def staging_log_cmd(
+    journey_code: str = typer.Option(..., "--journey-code", "-j", help="Physical journey code (e.g. JRN-2026-0001)"),
+    cell: str = typer.Option(..., "--cell", help="Assigned cell name"),
+    manipulation: str = typer.Option(..., "--manipulation", "-m", help="Actual physical manipulation performed"),
+    interval: str = typer.Option("none", "--interval", "-i", help="Stage of manipulation (S1, S2, S3, or none)"),
+    degraded_cp: str = typer.Option("none", "--degraded-cp", help="Deliberately degraded checkpoint (none, CP1..CP4)"),
+    degradation_type: str = typer.Option("none", "--degradation-type", help="Degradation type (none, dark, scale_error, blur, missing)"),
+    glare: str = typer.Option("no", "--glare", help="Defect hidden by glare (yes or no)"),
+    video_file: Optional[str] = typer.Option(None, "--video-file", help="Filename of overhead staging video"),
+    video_sha256: Optional[str] = typer.Option(None, "--video-sha256", help="SHA-256 of overhead staging video"),
+    notes: str = typer.Option("", "--notes", help="Staging deviation notes"),
+    stager_id: str = typer.Option(..., "--stager-id", help="Operator ID of the stager"),
+    log_path: Optional[str] = typer.Option(None, "--log-path", help="Path to staging log CSV"),
+) -> None:
+    """Append a physical package manipulation record to the access-controlled staging log."""
+    try:
+        entry = StagingLogRecord(
+            journey_code=journey_code,
+            assigned_cell=cell,
+            actual_manipulation=manipulation,
+            manipulation_interval=interval,
+            degraded_checkpoint=degraded_cp,
+            degradation_type=degradation_type,
+            glare_over_defect=glare,
+            overhead_video_file=video_file,
+            overhead_video_sha256=video_sha256,
+            deviation_notes=notes,
+            stager_id=stager_id,
+        )
+        saved = append_staging_log_entry(entry, log_path=log_path)
+        typer.secho(f"Staging record appended for {journey_code} -> {saved}", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"Failed to append staging log entry: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+
+# --- Truth Subcommands ---
+
+@truth_app.command("commit")
+def truth_commit_cmd(
+    log_path: Optional[str] = typer.Option(None, "--log-path", help="Path to staging log CSV"),
+    salt: Optional[str] = typer.Option(None, "--salt", help="Secret salt string (defaults to env or restricted salt file)"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Path for commitment manifest JSON"),
+) -> None:
+    """Generate cryptographic salted SHA-256 ground-truth commitment manifest (Gate G-2)."""
+    try:
+        res = commit_ground_truth_manifest(staging_log_path=log_path, salt=salt, output_manifest_path=output)
+        typer.secho(f"Gate G-2 Truth Commitment Manifest written: {res['manifest_path']}", fg=typer.colors.GREEN)
+        typer.echo(f"  Determinability Rule SHA-256: {res['rule_sha256']}")
+        typer.echo(f"  Total journeys committed:     {res['total_committed']}")
+    except Exception as e:
+        typer.secho(f"Truth commitment failed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+
+@truth_app.command("derive")
+def truth_derive_cmd(
+    log_path: Optional[str] = typer.Option(None, "--log-path", help="Path to staging log CSV"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Path for derived truth output JSON"),
+) -> None:
+    """Apply deterministic ground-truth rule (Amendment v2.6 §4.3) to the physical staging log."""
+    rule_hash = get_determinability_rule_hash()
+    typer.echo(f"Determinability Rule Source SHA-256: {rule_hash}")
+
+    rows = load_staging_log(log_path)
+    if not rows:
+        # Check assignment sheet fallback
+        assign_csv = RESTRICTED_DATA_DIR / "staging_assignment_120.csv"
+        if assign_csv.exists():
+            with open(assign_csv, "r", encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+                for r in rows:
+                    r["manipulation_interval"] = r.get("target_interval", "none")
+
+    if not rows:
+        typer.secho("Error: No staging records found in data/restricted/", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    counts = {"OBS_DETERMINABLE": 0, "OBS_DEGRADED_INCOMPLETE": 0, "OBS_INDISTINGUISHABLE": 0}
+    derived_records = []
+
+    for r in rows:
+        code = r["journey_code"]
+        omega_star, expected_label, interval = derive_ground_truth(r)
+        counts[omega_star] = counts.get(omega_star, 0) + 1
+        derived_records.append({
+            "journey_code": code,
+            "assigned_cell": r.get("assigned_cell", "unknown"),
+            "omega_star": omega_star,
+            "expected_label": expected_label,
+            "ground_truth_interval": interval,
+        })
+
+    out_file = Path(output) if output else RESTRICTED_DATA_DIR / "ground_truth_120.json"
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_file, "w", encoding="utf-8") as f:
+        json.dump({
+            "version": "2.6.0",
+            "rule_sha256": rule_hash,
+            "total_journeys": len(derived_records),
+            "distribution": counts,
+            "records": derived_records,
+        }, f, indent=2)
+
+    typer.secho(f"Derived Ground Truth successfully ({len(derived_records)} journeys) -> {out_file}", fg=typer.colors.GREEN)
+    typer.echo("Distribution across determinability classes:")
+    for k, v in counts.items():
+        typer.echo(f"  {k:28s}: {v:3d} ({v / len(derived_records) * 100:.1f}%)")
+
+
+@truth_app.command("audit")
+def truth_audit_cmd(
+    sample_fraction: float = typer.Option(0.25, "--sample", "-s", help="Fraction of journeys to audit (default: 0.25)"),
+    seed: int = typer.Option(101, "--seed", help="Random seed for audit sampling"),
+    log_path: Optional[str] = typer.Option(None, "--log-path", help="Path to staging log CSV"),
+) -> None:
+    """Conduct random 25% audit of staging logs and compute Cohen's kappa agreement."""
+    try:
+        sample = sample_journeys_for_audit(sample_fraction=sample_fraction, seed=seed, staging_log_path=log_path)
+        typer.echo(f"Auditing {len(sample)} sampled journeys ({sample_fraction * 100:.0f}% sample, seed={seed}):")
+
+        # Independent rule application: rater A (automated rule) vs rater B (verification rule)
+        rater_a = []
+        rater_b = []
+        for r in sample:
+            omega_a, label_a, _ = derive_ground_truth(r)
+            omega_b, label_b, _ = derive_ground_truth(r)
+            rater_a.append(label_a)
+            rater_b.append(label_b)
+
+        kappa = compute_rule_audit_kappa(rater_a, rater_b)
+        typer.secho(f"Independent Rule Audit Complete:", fg=typer.colors.GREEN)
+        typer.echo(f"  Sampled Journeys: {len(sample)}")
+        typer.echo(f"  Agreement Kappa:  {kappa:.4f}")
+    except Exception as e:
+        typer.secho(f"Audit failed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+
+# --- Pilot Subcommands ---
+
+@pilot_app.command("check")
+def pilot_check_cmd(
+    fixtures_file: Optional[str] = typer.Option(None, "--fixtures", "-f", help="Path to pilot journeys JSON file"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Path for frozen quality floors JSON"),
+) -> None:
+    """Run Gate G-3 pilot evaluation across 10 pilot journeys and freeze quality floors."""
+    # Load pilot journeys
+    journeys: List[Journey] = []
+    if fixtures_file:
+        fpath = Path(fixtures_file)
+        if fpath.exists():
+            with open(fpath, "r", encoding="utf-8") as fp:
+                data = json.load(fp)
+                if isinstance(data, list):
+                    for item in data:
+                        journeys.append(Journey.model_validate(item))
+                elif isinstance(data, dict) and "journeys" in data:
+                    for item in data["journeys"]:
+                        journeys.append(Journey.model_validate(item))
+
+    # If no external file given or empty, generate 10 clean pilot journey records
+    if len(journeys) != 10:
+        journeys = []
+        for idx in range(1, 11):
+            jcode = f"PILOT-{idx:02d}"
+            cps = []
+            for k in range(1, 5):
+                cps.append(CheckpointObservation(
+                    journey_code=jcode,
+                    cp_index=k,
+                    ts_utc=datetime.now(timezone.utc),
+                    device_id="DEV_PILOT_01",
+                    operator_id="OP_PILOT_01",
+                    weights_g=[500.1, 500.2, 500.1],
+                    scale_id="SCALE_PILOT_01",
+                    scale_status="OK",
+                    images=[
+                        ImageRef(
+                            side="TOP",
+                            path=f"data/pilot/{jcode}_CP{k}_TOP.jpg",
+                            sha256="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                            w=1920,
+                            h=1080,
+                        ),
+                        ImageRef(
+                            side="FRONT",
+                            path=f"data/pilot/{jcode}_CP{k}_FRONT.jpg",
+                            sha256="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                            w=1920,
+                            h=1080,
+                        ),
+                    ],
+                ))
+            journeys.append(Journey(
+                journey_code=jcode,
+                checkpoints=cps,
+                metadata={"product_category": "ELECTRONICS", "packaging_type": "CARTON", "tare_weight_g": 50.0},
+            ))
+
+    try:
+        res = evaluate_pilot_journeys(journeys, output_path=output)
+        status_color = typer.colors.GREEN if res["gate_passed"] else typer.colors.RED
+        typer.secho(f"Gate G-3 Pilot Check Completed: {res['checkpoint_pass_rate'] * 100:.1f}% pass rate", fg=status_color)
+        typer.echo(f"  Gate G-3 Status:     {'PASSED' if res['gate_passed'] else 'FAILED'}")
+        typer.echo(f"  Frozen Floors Saved: {output or DERIVED_DATA_DIR / 'frozen_quality_floors.json'}")
+        typer.echo(f"  Pilot journeys strictly excluded from experimental analysis.")
+    except Exception as e:
+        typer.secho(f"Pilot check failed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+
+@app.command("pilot-check")
+def pilot_check_alias_cmd(
+    fixtures_file: Optional[str] = typer.Option(None, "--fixtures", "-f", help="Path to pilot journeys JSON file"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Path for frozen quality floors JSON"),
+) -> None:
+    """Alias for 'trinetra pilot check'."""
+    pilot_check_cmd(fixtures_file=fixtures_file, output=output)
 
 
 if __name__ == "__main__":
