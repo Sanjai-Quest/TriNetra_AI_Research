@@ -92,101 +92,29 @@ def query_groq_llm(
         return json.loads(content)
 
 
-def offline_deterministic_judge(journey: Journey) -> Dict[str, Any]:
-    """
-    Deterministic rule-based LLM emulator when GROQ_API_KEY is not configured.
-    Implements reasoning following the exact instructions in llm_judge_v1.txt.
-    """
-    cps = {cp.cp_index: cp for cp in journey.checkpoints}
-    cp1 = cps.get(1)
-
-    if not cp1 or len(cps) < 4:
-        return {
-            "label": "ATTR_ABSTAIN_DEGRADED",
-            "confidence": 0.95,
-            "rationale": "Missing or incomplete supply chain checkpoints in telemetry.",
-        }
-
-    # Check for degraded telemetry
-    for k in (1, 2, 3, 4):
-        cp = cps.get(k)
-        if cp and (cp.scale_status in ("ERROR", "UNSTABLE") or len(cp.weights_g) < 3):
-            return {
-                "label": "ATTR_ABSTAIN_DEGRADED",
-                "confidence": 0.90,
-                "rationale": f"Scale error or unusable telemetry at Checkpoint CP{k}.",
-            }
-
-    # Check carrier log for deliberate glare concealment
-    for cp in journey.checkpoints:
-        if cp.carrier_log and "glare" in cp.carrier_log.lower():
-            return {
-                "label": "ATTR_ABSTAIN_INDISTINGUISHABLE",
-                "confidence": 0.85,
-                "rationale": "Severe camera glare over seal defect renders stage indistinguishable.",
-            }
-
-    # Sequential anomaly detection
-    w1 = float(np.mean(cp1.weights_g))
-    cumulative_tare = 0.0
-
-    for k in (2, 3, 4):
-        cp_k = cps.get(k)
-        if not cp_k:
-            continue
-        if cp_k.permitted_packaging_change:
-            cumulative_tare += cp_k.tare_delta_g
-
-        w_k = float(np.mean(cp_k.weights_g))
-        w_diff = abs(w_k - w1 - cumulative_tare)
-        seal_mismatch = bool(cp1.seal_qr and cp_k.seal_qr and cp1.seal_qr != cp_k.seal_qr)
-        serial_mismatch = bool(cp1.serial and cp_k.serial and cp1.serial != cp_k.serial)
-
-        if w_diff > 2.0 or seal_mismatch or serial_mismatch:
-            stage = k - 1
-            return {
-                "label": f"ATTR_STAGE({stage})",
-                "confidence": 0.92,
-                "rationale": (
-                    f"Discrepancy first confirmed between CP{stage} and CP{k} "
-                    f"(weight delta: {w_diff:.2f}g, seal mismatch: {seal_mismatch})."
-                ),
-            }
-
-    return {
-        "label": "ATTR_CONFIRMED_LEGITIMATE",
-        "confidence": 0.95,
-        "rationale": "All checkpoints exhibit consistent weight, seal, and serial telemetry.",
-    }
-
-
 def predict_b4_llm_judge(
     journey: Journey,
     groq_api_key: Optional[str] = None,
     runs: int = 3,
 ) -> Attribution:
     """
-    Baseline B4: LLM Judge using Groq llama-3.3-70b-versatile (temp 0, 3 runs)
-    or deterministic offline emulator when GROQ_API_KEY is not set.
+    Baseline B4: LLM Judge using Groq llama-3.3-70b-versatile (temp 0, 3 runs).
+    Requires GROQ_API_KEY. If key is missing, raises RuntimeError.
+    Offline deterministic judge fallback has been removed per research protocol audit.
     """
     api_key = groq_api_key or os.getenv("GROQ_API_KEY")
-    prompt = build_judge_prompt(journey)
+    if not api_key:
+        raise RuntimeError(
+            "GROQ_API_KEY is missing. Baseline B4 (LLM Judge) cannot execute without a valid Groq API key."
+        )
 
+    prompt = build_judge_prompt(journey)
     responses: List[Dict[str, Any]] = []
 
-    if api_key:
-        # Run 3 live inference queries as required by protocol
-        for _ in range(max(1, runs)):
-            try:
-                res = query_groq_llm(prompt, api_key=api_key, model=DEFAULT_GROQ_MODEL, temperature=0.0)
-                responses.append(res)
-            except Exception:
-                # Fallback to offline parser on network error
-                responses.append(offline_deterministic_judge(journey))
-    else:
-        # Offline deterministic mode (zero hallucination / network dependency)
-        for _ in range(max(1, runs)):
-            responses.append(offline_deterministic_judge(journey))
+    # Run repeated live inference queries as required by protocol
+    for _ in range(max(1, runs)):
+        res = query_groq_llm(prompt, api_key=api_key, model=DEFAULT_GROQ_MODEL, temperature=0.0)
+        responses.append(res)
 
     # Majority voting over the runs
     labels = [r.get("label", "ATTR_ABSTAIN_DEGRADED") for r in responses]
@@ -194,16 +122,25 @@ def predict_b4_llm_judge(
     consensus_label = counter.most_common(1)[0][0]
     avg_conf = float(np.mean([r.get("confidence", 0.5) for r in responses if r.get("label") == consensus_label]))
 
-    # Interval mapping
-    interval = None
-    if consensus_label.startswith("ATTR_STAGE("):
-        try:
-            st = int(consensus_label.split("(")[1].split(")")[0])
-            interval = [st, st + 1]
-        except Exception:
-            pass
-    elif consensus_label == "ATTR_CONFIRMED_LEGITIMATE":
+    # Map consensus label to canonical protocol label strings
+    if consensus_label in ("ATTR_STAGE_FORWARD_TRANSIT", "ATTR_STAGE(1)", "STAGE(1)"):
+        consensus_label = "ATTR_STAGE_FORWARD_TRANSIT"
+        interval = [1, 2]
+    elif consensus_label in ("ATTR_STAGE_CONSUMER_CUSTODY", "ATTR_STAGE(2)", "STAGE(2)"):
+        consensus_label = "ATTR_STAGE_CONSUMER_CUSTODY"
+        interval = [2, 3]
+    elif consensus_label in ("ATTR_STAGE_REVERSE_TRANSIT", "ATTR_STAGE(3)", "STAGE(3)"):
+        consensus_label = "ATTR_STAGE_REVERSE_TRANSIT"
+        interval = [3, 4]
+    elif consensus_label in ("ATTR_CONFIRMED_LEGITIMATE", "LEGITIMATE"):
+        consensus_label = "ATTR_CONFIRMED_LEGITIMATE"
         interval = [1, 4]
+    elif consensus_label in ("ATTR_ABSTAIN_INDISTINGUISHABLE", "ABSTAIN_INDISTINGUISHABLE"):
+        consensus_label = "ATTR_ABSTAIN_INDISTINGUISHABLE"
+        interval = None
+    else:
+        consensus_label = "ATTR_ABSTAIN_DEGRADED"
+        interval = None
 
     rationale = responses[0].get("rationale", f"Consensus over {len(responses)} runs: {consensus_label}")
 

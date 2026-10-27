@@ -37,7 +37,7 @@ def predict_b1_cp4(journey: Journey) -> Attribution:
     if cp4.scale_status in ("ERROR", "UNSTABLE"):
         return Attribution(
             journey_code=code,
-            label="ATTR_STAGE(3)",
+            label="ATTR_STAGE_REVERSE_TRANSIT",
             interval=[3, 4],
             rationale_text="Baseline B1: CP4 recorded scale error status; terminal anomaly flagged.",
         )
@@ -57,7 +57,7 @@ def predict_b1_cp4(journey: Journey) -> Attribution:
     if is_weight_anomaly or is_seal_anomaly:
         return Attribution(
             journey_code=code,
-            label="ATTR_STAGE(3)",
+            label="ATTR_STAGE_REVERSE_TRANSIT",
             interval=[3, 4],
             rationale_text=(
                 f"Baseline B1: Terminal anomaly detected at CP4 (weight_diff={weight_diff:.2f}g, "

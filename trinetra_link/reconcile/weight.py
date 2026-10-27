@@ -34,13 +34,16 @@ def load_scale_parameters(
     return DEFAULT_SCALE_SIGMA_G, DEFAULT_SCALE_DELTA_G
 
 
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+
 def reconcile_weights(
     obs_baseline: CheckpointObservation,
     obs_current: CheckpointObservation,
     z: float = 3.0,
     scales_file_path: Optional[Path | str] = None,
     cumulative_tare_delta_g: float = 0.0,
-) -> Tuple[bool, float, float]:
+) -> Tuple[Union[bool, str], float, float]:
     """
     Evaluate weight anomaly condition:
         |w_b - w_a - tare_adj| > z * sqrt(sigma_a^2 + sigma_b^2) + delta_a + delta_b
@@ -51,9 +54,10 @@ def reconcile_weights(
 
     Returns:
         (is_anomaly, observed_delta_g, threshold_bound_g)
+        where is_anomaly is True (anomaly), False (consistent), or "UNKNOWN" (untrusted/missing).
     """
     if not obs_baseline.weights_g or not obs_current.weights_g:
-        return False, 0.0, 0.0
+        return "UNKNOWN", 0.0, 0.0
 
     w_a_raw = float(float(sorted(obs_baseline.weights_g)[len(obs_baseline.weights_g) // 2]))
     w_b_raw = float(float(sorted(obs_current.weights_g)[len(obs_current.weights_g) // 2]))

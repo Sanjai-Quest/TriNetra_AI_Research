@@ -5,6 +5,8 @@ import json
 import os
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
+import matplotlib
+matplotlib.use("Agg")  # non-interactive backend — no Tk/display needed
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -132,6 +134,7 @@ def evaluate_e1(
     allow_synthetic_dry_run: bool = False,
     is_demo_run: bool = False,
     skip_llm_if_no_key: bool = False,
+    theta: Optional[float] = None,
 ) -> Dict[str, Any]:
     """
     Execute Experiment E1: Primary Benchmark Evaluation on the 96-journey test split.
@@ -272,19 +275,22 @@ def evaluate_e1(
             test_journeys.append(generate_benchmark_journey_from_staging(r))
 
     # 4. Method Evaluators
+    active_theta = theta if theta is not None else 0.70
     methods: Dict[str, Callable[[Journey], Any]] = {
-        "TriNetra-Link (Alg 1)": lambda j: predict_trinetra_link(j, mode="algorithm1", scales_config=scales_config, scales_path=sc_path),
-        "TriNetra-Link (Bayes)": lambda j: predict_trinetra_link(j, mode="bayes", scales_config=scales_config, scales_path=sc_path),
+        "TriNetra-Link (Alg 1)": lambda j: predict_trinetra_link(j, mode="algorithm1", theta=active_theta, scales_config=scales_config, scales_path=sc_path),
+        "TriNetra-Link (Bayes)": lambda j: predict_trinetra_link(j, mode="bayes", theta=active_theta, scales_config=scales_config, scales_path=sc_path),
         "B1 (CP4-only)": predict_b1_cp4,
         "B2 (Endpoints CP1+CP4)": predict_b2_endpoints,
         "B3 (Detection=Origin)": predict_b3_unlinked,
         "B5 (V3 Rules)": predict_b5_v3_rules,
     }
 
-    # Include LLM Judge baseline unless instructed to skip or key is absent in demo mode
+    # Include LLM Judge baseline ONLY when GROQ_API_KEY is present
     has_groq_key = bool(os.environ.get("GROQ_API_KEY"))
-    if has_groq_key or not (skip_llm_if_no_key or is_demo_run):
+    if has_groq_key:
         methods["B4 (LLM Judge)"] = predict_b4_llm_judge
+    else:
+        print("[INFO] Baseline B4 (LLM Judge) SKIPPED: GROQ_API_KEY is missing. No predictions or table row produced.")
 
     results_table: List[Dict[str, Any]] = []
     method_predictions: Dict[str, List[str]] = {}

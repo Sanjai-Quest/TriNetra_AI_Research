@@ -32,29 +32,29 @@ def test_no_anomalies_terminal_untrusted_yields_abstain_degraded():
 
 
 def test_stage_1_resolution():
-    # b = 2, a = 1 -> ATTR_STAGE(1)
+    # b = 2, a = 1 -> ATTR_STAGE_FORWARD_TRANSIT
     q_k = {1: 0.95, 2: 0.90, 3: 0.85, 4: 0.92}
     z_k = {1: "INTACT", 2: "ANOM", 3: "ANOM", 4: "ANOM"}
     res = attribute_interval_algorithm_1("TEST-04", q_k, z_k, theta=0.70)
-    assert res.label == "ATTR_STAGE(1)"
+    assert res.label == "ATTR_STAGE_FORWARD_TRANSIT"
     assert res.interval == [1, 2]
 
 
 def test_stage_2_resolution():
-    # b = 3, a = 2 -> ATTR_STAGE(2)
+    # b = 3, a = 2 -> ATTR_STAGE_CONSUMER_CUSTODY
     q_k = {1: 0.95, 2: 0.90, 3: 0.85, 4: 0.92}
     z_k = {1: "INTACT", 2: "INTACT", 3: "ANOM", 4: "ANOM"}
     res = attribute_interval_algorithm_1("TEST-05", q_k, z_k, theta=0.70)
-    assert res.label == "ATTR_STAGE(2)"
+    assert res.label == "ATTR_STAGE_CONSUMER_CUSTODY"
     assert res.interval == [2, 3]
 
 
 def test_stage_3_resolution():
-    # b = 4, a = 3 -> ATTR_STAGE(3)
+    # b = 4, a = 3 -> ATTR_STAGE_REVERSE_TRANSIT
     q_k = {1: 0.95, 2: 0.90, 3: 0.85, 4: 0.92}
     z_k = {1: "INTACT", 2: "INTACT", 3: "INTACT", 4: "ANOM"}
     res = attribute_interval_algorithm_1("TEST-06", q_k, z_k, theta=0.70)
-    assert res.label == "ATTR_STAGE(3)"
+    assert res.label == "ATTR_STAGE_REVERSE_TRANSIT"
     assert res.interval == [3, 4]
 
 

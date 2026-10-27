@@ -50,14 +50,20 @@ def predict_b3_unlinked(journey: Journey) -> Attribution:
 
         if is_weight_anomaly or is_seal_anomaly or is_serial_anomaly or is_imei_anomaly:
             stage_idx = k - 1
+            stage_map = {
+                1: "ATTR_STAGE_FORWARD_TRANSIT",
+                2: "ATTR_STAGE_CONSUMER_CUSTODY",
+                3: "ATTR_STAGE_REVERSE_TRANSIT",
+            }
+            stage_label = stage_map.get(stage_idx, f"ATTR_STAGE_{stage_idx}")
             return Attribution(
                 journey_code=code,
-                label=f"ATTR_STAGE({stage_idx})",
+                label=stage_label,
                 interval=[stage_idx, stage_idx + 1],
                 rationale_text=(
                     f"Baseline B3 (Detection=Origin): Earliest anomaly detected at CP{k} "
                     f"(weight_diff={weight_diff:.2f}g, seal_diff={is_seal_anomaly}, "
-                    f"serial_diff={is_serial_anomaly}). Attributed to preceding Stage S{stage_idx}."
+                    f"serial_diff={is_serial_anomaly}). Attributed to preceding Stage {stage_label}."
                 ),
             )
 

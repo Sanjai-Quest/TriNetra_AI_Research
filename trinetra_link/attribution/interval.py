@@ -81,8 +81,13 @@ def attribute_interval_algorithm_1(
         )
 
     # 7. Exact adjacent stage resolution
+    stage_map = {
+        1: "ATTR_STAGE_FORWARD_TRANSIT",
+        2: "ATTR_STAGE_CONSUMER_CUSTODY",
+        3: "ATTR_STAGE_REVERSE_TRANSIT",
+    }
     if b == a + 1:
-        stage_label = f"ATTR_STAGE({a})"
+        stage_label = stage_map.get(a, f"ATTR_STAGE_{a}")
         return Attribution(
             journey_code=journey_code,
             label=stage_label,

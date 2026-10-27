@@ -637,6 +637,9 @@ def demo_run_cmd(
         cal_journeys,
         split_name="calibration",
         output_dir=run_dir / "fit",
+        staging_log_path=demo_dir / "staging_log_120.csv",
+        scales_path=demo_dir / "scales.json",
+        allow_synthetic_dry_run=True,
     )
     typer.secho(f"Fitted calibration thresholds saved -> {fit_res['saved_path']}", fg=typer.colors.GREEN)
     typer.echo(f"  theta = {fit_res['theta']:.2f}, z = {fit_res['z_weight']:.2f}, tau = {fit_res['tau_bayes']:.2f}")
@@ -653,6 +656,7 @@ def demo_run_cmd(
         allow_synthetic_dry_run=True,
         is_demo_run=True,
         skip_llm_if_no_key=skip_llm,
+        theta=fit_res["theta"],
     )
 
     typer.secho("\n" + "=" * 76, fg=typer.colors.YELLOW)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import pytest
 from typer.testing import CliRunner
@@ -9,7 +10,7 @@ from typer.testing import CliRunner
 from trinetra_link.baselines.b1_cp4 import predict_b1_cp4
 from trinetra_link.baselines.b2_endpoints import predict_b2_endpoints
 from trinetra_link.baselines.b3_unlinked import predict_b3_unlinked
-from trinetra_link.baselines.b4_llm_judge import offline_deterministic_judge, predict_b4_llm_judge
+from trinetra_link.baselines.b4_llm_judge import predict_b4_llm_judge
 from trinetra_link.baselines.b5_v3_rules import predict_b5_v3_rules
 from trinetra_link.cli import app
 from trinetra_link.eval.e1 import evaluate_e1, generate_benchmark_journey_from_staging
@@ -36,10 +37,12 @@ def make_test_journey(
     weights_per_cp: Optional[list[list[float]]] = None,
     seal_per_cp: Optional[list[str]] = None,
     scale_statuses: Optional[list[str]] = None,
+    serials_per_cp: Optional[list[str]] = None,
 ) -> Journey:
     w_list = weights_per_cp or [[500.0, 500.0, 500.0] for _ in range(4)]
     s_list = seal_per_cp or ["SEAL-ORIG" for _ in range(4)]
     st_list = scale_statuses or ["OK" for _ in range(4)]
+    sn_list = serials_per_cp or ["SN-100" for _ in range(4)]
 
     cps = []
     for k in (1, 2, 3, 4):
@@ -53,7 +56,7 @@ def make_test_journey(
             scale_id="SCALE-STD",
             scale_status=st_list[k - 1],
             seal_qr=s_list[k - 1],
-            serial="SN-100",
+            serial=sn_list[k - 1],
             imei="IMEI-100",
             images=[
                 ImageRef(side="TOP", path=f"mock_{k}.jpg", sha256="fake", w=800, h=600)
@@ -73,7 +76,7 @@ def test_baseline_b1_cp4():
         weights_per_cp=[[500.0]*3, [500.0]*3, [500.0]*3, [450.0]*3]
     )
     res_tamp = predict_b1_cp4(tampered_j)
-    assert res_tamp.label == "ATTR_STAGE(3)"
+    assert res_tamp.label == "ATTR_STAGE_REVERSE_TRANSIT"
 
 
 def test_baseline_b2_endpoints():
@@ -85,7 +88,7 @@ def test_baseline_b2_endpoints():
     tampered_j = make_test_journey(
         weights_per_cp=[[500.0]*3, [500.0]*3, [500.0]*3, [480.0]*3]
     )
-    assert predict_b2_endpoints(tampered_j).label == "ATTR_STAGE(3)"
+    assert predict_b2_endpoints(tampered_j).label == "ATTR_STAGE_REVERSE_TRANSIT"
 
 
 def test_baseline_b3_unlinked():
@@ -94,51 +97,51 @@ def test_baseline_b3_unlinked():
     j_s1 = make_test_journey(
         weights_per_cp=[[500.0]*3, [470.0]*3, [470.0]*3, [470.0]*3]
     )
-    assert predict_b3_unlinked(j_s1).label == "ATTR_STAGE(1)"
+    assert predict_b3_unlinked(j_s1).label == "ATTR_STAGE_FORWARD_TRANSIT"
 
     # Anomaly at CP3 -> S2
     j_s2 = make_test_journey(
         weights_per_cp=[[500.0]*3, [500.0]*3, [470.0]*3, [470.0]*3]
     )
-    assert predict_b3_unlinked(j_s2).label == "ATTR_STAGE(2)"
+    assert predict_b3_unlinked(j_s2).label == "ATTR_STAGE_CONSUMER_CUSTODY"
 
     # Anomaly at CP4 -> S3
     j_s3 = make_test_journey(
         weights_per_cp=[[500.0]*3, [500.0]*3, [500.0]*3, [470.0]*3]
     )
-    assert predict_b3_unlinked(j_s3).label == "ATTR_STAGE(3)"
+    assert predict_b3_unlinked(j_s3).label == "ATTR_STAGE_REVERSE_TRANSIT"
 
 
-def test_baseline_b4_llm_judge():
-    """Verify B4 offline deterministic parser logic."""
+def test_baseline_b4_llm_judge(monkeypatch):
+    """Verify B4 skips / refuses when GROQ_API_KEY is missing, and queries when key is present."""
+    from unittest.mock import patch
     clean_j = make_test_journey()
-    assert predict_b4_llm_judge(clean_j).label == "ATTR_CONFIRMED_LEGITIMATE"
 
-    # Check scale error -> ABSTAIN_DEGRADED
-    deg_j = make_test_journey(scale_statuses=["OK", "ERROR", "OK", "OK"])
-    assert predict_b4_llm_judge(deg_j).label == "ATTR_ABSTAIN_DEGRADED"
+    # When key is missing -> raises RuntimeError
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="GROQ_API_KEY is missing"):
+        predict_b4_llm_judge(clean_j)
 
-    # Tamper at CP2 -> S1
-    tamp_j = make_test_journey(
-        weights_per_cp=[[500.0]*3, [460.0]*3, [460.0]*3, [460.0]*3]
-    )
-    assert predict_b4_llm_judge(tamp_j).label == "ATTR_STAGE(1)"
+    # When key is provided -> queries API and returns consensus
+    with patch("trinetra_link.baselines.b4_llm_judge.query_groq_llm", return_value={"label": "ATTR_CONFIRMED_LEGITIMATE", "confidence": 0.95, "rationale": "mock"}):
+        res = predict_b4_llm_judge(clean_j, groq_api_key="gsk_mock_test_key")
+        assert res.label == "ATTR_CONFIRMED_LEGITIMATE"
 
 
 def test_baseline_b5_v3_rules():
-    """Verify B5 ported V3 rules."""
+    """Verify B5 ported V3 rules (uses only serial/IMEI/custody without weight or images)."""
     clean_j = make_test_journey()
     assert predict_b5_v3_rules(clean_j).label == "ATTR_CONFIRMED_LEGITIMATE"
 
-    # Seal mismatch at CP2 -> S1
-    seal_j = make_test_journey(seal_per_cp=["SEAL-ORIG", "SEAL-TAMPER", "SEAL-TAMPER", "SEAL-TAMPER"])
-    assert predict_b5_v3_rules(seal_j).label == "ATTR_STAGE(1)"
+    # Serial mismatch at CP2 -> S1 (ATTR_STAGE_FORWARD_TRANSIT)
+    serial_j = make_test_journey(serials_per_cp=["SN-100", "SN-TAMPER", "SN-TAMPER", "SN-TAMPER"])
+    assert predict_b5_v3_rules(serial_j).label == "ATTR_STAGE_FORWARD_TRANSIT"
 
 
 def test_metrics_computation():
     """Verify evaluation metric calculators."""
-    preds = ["ATTR_STAGE(1)", "ATTR_STAGE(2)", "ATTR_ABSTAIN_DEGRADED", "ATTR_STAGE(1)"]
-    gts   = ["ATTR_STAGE(1)", "ATTR_STAGE(2)", "ATTR_ABSTAIN_DEGRADED", "ATTR_STAGE(3)"]
+    preds = ["ATTR_STAGE_FORWARD_TRANSIT", "ATTR_STAGE_CONSUMER_CUSTODY", "ATTR_ABSTAIN_DEGRADED", "ATTR_STAGE_FORWARD_TRANSIT"]
+    gts   = ["ATTR_STAGE_FORWARD_TRANSIT", "ATTR_STAGE_CONSUMER_CUSTODY", "ATTR_ABSTAIN_DEGRADED", "ATTR_STAGE_REVERSE_TRANSIT"]
     omegas = ["OBS_DETERMINABLE", "OBS_DETERMINABLE", "OBS_DEGRADED_INCOMPLETE", "OBS_DETERMINABLE"]
 
     acc, corr, tot = compute_stage_accuracy(preds, gts, omegas)
@@ -158,7 +161,7 @@ def test_metrics_computation():
     assert 0.0 <= aurc <= 1.0
 
     # McNemar test
-    preds_b = ["ATTR_STAGE(1)", "ATTR_STAGE(1)", "ATTR_ABSTAIN_DEGRADED", "ATTR_STAGE(3)"]
+    preds_b = ["ATTR_STAGE_FORWARD_TRANSIT", "ATTR_STAGE_FORWARD_TRANSIT", "ATTR_ABSTAIN_DEGRADED", "ATTR_STAGE_REVERSE_TRANSIT"]
     b_disc, c_disc, p_val = exact_mcnemar_test(preds, preds_b, gts)
     assert p_val > 0.0
 
@@ -186,7 +189,8 @@ def test_experiments_e1_e2_e3_integration(tmp_path: Path):
         output_dir=e1_dir,
         b_bootstrap=100,  # Fast bootstrap for test suite
     )
-    assert len(e1_res["results_summary"]) == 7
+    expected_methods = 7 if os.environ.get("GROQ_API_KEY") else 6
+    assert len(e1_res["results_summary"]) == expected_methods
     assert Path(e1_res["artifacts"]["csv_table"]).exists()
     assert Path(e1_res["artifacts"]["latex_table"]).exists()
     assert Path(e1_res["artifacts"]["figure_png"]).exists()

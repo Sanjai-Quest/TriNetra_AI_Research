@@ -15,9 +15,9 @@ from trinetra_link.schema.models import CheckpointObservation, Journey
 
 PROTOCOL_LABELS = {
     "ATTR_CONFIRMED_LEGITIMATE",
-    "ATTR_STAGE(1)",
-    "ATTR_STAGE(2)",
-    "ATTR_STAGE(3)",
+    "ATTR_STAGE_FORWARD_TRANSIT",
+    "ATTR_STAGE_CONSUMER_CUSTODY",
+    "ATTR_STAGE_REVERSE_TRANSIT",
     "ATTR_ABSTAIN_DEGRADED",
     "ATTR_ABSTAIN_INDISTINGUISHABLE",
 }
@@ -90,8 +90,10 @@ def test_every_method_emits_valid_protocol_labels():
         b3 = predict_b3_unlinked(j)
         assert b3.label in PROTOCOL_LABELS, f"B3 emitted non-protocol label: {b3.label}"
 
-        b4 = predict_b4_llm_judge(j)
-        assert b4.label in PROTOCOL_LABELS, f"B4 emitted non-protocol label: {b4.label}"
+        from unittest.mock import patch
+        with patch("trinetra_link.baselines.b4_llm_judge.query_groq_llm", return_value={"label": "ATTR_CONFIRMED_LEGITIMATE", "confidence": 0.95}):
+            b4 = predict_b4_llm_judge(j, groq_api_key="mock_key")
+            assert b4.label in PROTOCOL_LABELS, f"B4 emitted non-protocol label: {b4.label}"
 
         b5 = predict_b5_v3_rules(j)
         assert b5.label in PROTOCOL_LABELS, f"B5 emitted non-protocol label: {b5.label}"
@@ -108,9 +110,9 @@ def test_property_alg1_equals_b3_when_all_checkpoints_trusted():
     scenarios = [
         # (tamper_cp, expected_stage)
         (0, "ATTR_CONFIRMED_LEGITIMATE"),
-        (2, "ATTR_STAGE(1)"),
-        (3, "ATTR_STAGE(2)"),
-        (4, "ATTR_STAGE(3)"),
+        (2, "ATTR_STAGE_FORWARD_TRANSIT"),
+        (3, "ATTR_STAGE_CONSUMER_CUSTODY"),
+        (4, "ATTR_STAGE_REVERSE_TRANSIT"),
     ]
 
     for tamper_cp, expected_label in scenarios:

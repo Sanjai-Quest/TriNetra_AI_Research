@@ -32,6 +32,26 @@ def test_scale_reading_evaluation_unstable_spread():
     assert any("spread" in r for r in reasons)
 
 
+def test_scale_reading_evaluation_scale_sigma_spread():
+    # Sigma = 0.5g -> threshold = 4 * 0.5 = 2.0g. Spread 2.5g > 2.0g -> unstable
+    score, reasons = evaluate_scale_readings(
+        weights_g=[500.0, 502.5, 501.0],
+        scale_status="OK",
+        scale_sigma=0.5,
+    )
+    assert score < 1.0
+    assert any("4*sigma" in r for r in reasons)
+
+    # Spread 1.5g <= 2.0g -> stable
+    score_clean, reasons_clean = evaluate_scale_readings(
+        weights_g=[500.0, 501.5, 501.0],
+        scale_status="OK",
+        scale_sigma=0.5,
+    )
+    assert score_clean == 1.0
+    assert len(reasons_clean) == 0
+
+
 def test_scale_reading_evaluation_error_status():
     score, reasons = evaluate_scale_readings(
         weights_g=[500.0, 500.0, 500.0],

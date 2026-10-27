@@ -67,3 +67,25 @@ def test_load_scale_parameters_from_file(tmp_path):
     sigma_def, delta_def = load_scale_parameters("NONEXISTENT", scales_file_path=scales_json_file)
     assert sigma_def == 0.35
     assert delta_def == 0.10
+
+
+def test_missing_weights_returns_unknown():
+    """When either baseline or current checkpoint has no weights, return UNKNOWN."""
+    obs_valid = make_obs(1, [500.0, 500.1, 500.0])
+    obs_empty = make_obs(2, [])
+
+    # Case A: Current checkpoint has empty weights
+    status_a, delta_a, bound_a = reconcile_weights(obs_valid, obs_empty)
+    assert status_a == "UNKNOWN"
+    assert delta_a == 0.0
+
+    # Case B: Baseline checkpoint has empty weights
+    status_b, delta_b, bound_b = reconcile_weights(obs_empty, obs_valid)
+    assert status_b == "UNKNOWN"
+    assert delta_b == 0.0
+
+    # Case C: Both checkpoints have empty weights
+    status_c, delta_c, bound_c = reconcile_weights(obs_empty, obs_empty)
+    assert status_c == "UNKNOWN"
+    assert delta_c == 0.0
+

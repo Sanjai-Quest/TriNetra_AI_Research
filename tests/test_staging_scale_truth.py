@@ -131,19 +131,19 @@ def test_determinability_rule_and_code_hash():
     # 3. Stage 1 manipulation
     omega, label, interval = derive_ground_truth({"manipulation_interval": "S1"})
     assert omega == "OBS_DETERMINABLE"
-    assert label == "ATTR_STAGE(1)"
+    assert label == "ATTR_STAGE_FORWARD_TRANSIT"
     assert interval == [1, 2]
 
     # 4. Stage 2 manipulation
     omega, label, interval = derive_ground_truth({"manipulation_interval": "S2"})
     assert omega == "OBS_DETERMINABLE"
-    assert label == "ATTR_STAGE(2)"
+    assert label == "ATTR_STAGE_CONSUMER_CUSTODY"
     assert interval == [2, 3]
 
     # 5. Stage 3 manipulation
     omega, label, interval = derive_ground_truth({"manipulation_interval": "S3"})
     assert omega == "OBS_DETERMINABLE"
-    assert label == "ATTR_STAGE(3)"
+    assert label == "ATTR_STAGE_REVERSE_TRANSIT"
     assert interval == [3, 4]
 
     # 6. Deliberate staged degradation
@@ -228,12 +228,12 @@ def test_truth_audit_and_cohens_kappa(tmp_path: Path):
     sample = sample_journeys_for_audit(sample_fraction=0.25, seed=101, staging_log_path=assign_res["csv_path"])
     assert len(sample) == 30
 
-    labels_a = ["ATTR_STAGE(1)", "ATTR_CONFIRMED_LEGITIMATE", "ATTR_ABSTAIN_DEGRADED"]
-    labels_b = ["ATTR_STAGE(1)", "ATTR_CONFIRMED_LEGITIMATE", "ATTR_ABSTAIN_DEGRADED"]
+    labels_a = ["ATTR_STAGE_FORWARD_TRANSIT", "ATTR_CONFIRMED_LEGITIMATE", "ATTR_ABSTAIN_DEGRADED"]
+    labels_b = ["ATTR_STAGE_FORWARD_TRANSIT", "ATTR_CONFIRMED_LEGITIMATE", "ATTR_ABSTAIN_DEGRADED"]
     kappa = compute_rule_audit_kappa(labels_a, labels_b)
     assert kappa == 1.0
 
-    labels_c = ["ATTR_STAGE(2)", "ATTR_CONFIRMED_LEGITIMATE", "ATTR_STAGE(1)"]
+    labels_c = ["ATTR_STAGE_CONSUMER_CUSTODY", "ATTR_CONFIRMED_LEGITIMATE", "ATTR_STAGE_FORWARD_TRANSIT"]
     kappa_imperfect = compute_rule_audit_kappa(labels_a, labels_c)
     assert kappa_imperfect < 1.0
 

@@ -74,10 +74,11 @@ def evaluate_scale_readings(
     scale_status: str,
     min_readings: int = 3,
     min_weight_g: float = 1.0,
-    max_spread_g: float = 2.0,
+    max_spread_g: Optional[float] = None,
+    scale_sigma: Optional[float] = None,
     allowed_statuses: Optional[List[str]] = None,
 ) -> Tuple[float, List[str]]:
-    """Evaluate repeated scale reading spread, status, and validity."""
+    """Evaluate repeated scale reading spread, status, and validity using 4*sigma stability rule."""
     reasons: List[str] = []
     if allowed_statuses is None:
         allowed_statuses = ["OK", "MANUAL", "SETTLED"]
@@ -99,11 +100,18 @@ def evaluate_scale_readings(
         reasons.append(f"Minimum reading {min_reading:.2f}g is below floor {min_weight_g:.2f}g")
         return 0.0, reasons
 
-    # Spread check
+    # Spread threshold: use scale's sigma (unstable if spread > 4 * sigma), not a fixed 2 g
+    if scale_sigma is not None and scale_sigma > 0:
+        spread_threshold = 4.0 * scale_sigma
+    elif max_spread_g is not None:
+        spread_threshold = max_spread_g
+    else:
+        spread_threshold = 4.0 * 1.0  # default sigma = 1.0 g -> 4.0 g
+
     spread = max(weights_g) - min(weights_g)
-    if spread > max_spread_g:
-        spread_score = max(0.0, 1.0 - (spread - max_spread_g) / max_spread_g)
-        reasons.append(f"Scale spread {spread:.2f}g exceeds threshold {max_spread_g:.2f}g")
+    if spread > spread_threshold:
+        spread_score = max(0.0, 1.0 - (spread - spread_threshold) / spread_threshold)
+        reasons.append(f"Scale spread {spread:.2f}g exceeds threshold {spread_threshold:.2f}g (4*sigma)")
         return spread_score, reasons
 
     return 1.0, reasons

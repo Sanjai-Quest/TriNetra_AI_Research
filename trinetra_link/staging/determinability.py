@@ -39,10 +39,15 @@ def derive_ground_truth(
         return ("OBS_DETERMINABLE", "ATTR_CONFIRMED_LEGITIMATE", [1, 4])
 
     # 4. Determinable Stage Manipulation S_k
+    stage_map = {
+        1: "ATTR_STAGE_FORWARD_TRANSIT",
+        2: "ATTR_STAGE_CONSUMER_CUSTODY",
+        3: "ATTR_STAGE_REVERSE_TRANSIT",
+    }
     if interval_raw.startswith("S") and len(interval_raw) >= 2:
         try:
             stage_k = int(interval_raw[1])
-            expected_label = f"ATTR_STAGE({stage_k})"
+            expected_label = stage_map.get(stage_k, f"ATTR_STAGE_{stage_k}")
             return ("OBS_DETERMINABLE", expected_label, [stage_k, stage_k + 1])
         except ValueError:
             pass

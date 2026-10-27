@@ -14,7 +14,7 @@ from trinetra_link.schema.models import Attribution, CheckpointObservation, Jour
 
 
 def canonicalize_label(label: str) -> str:
-    """Ensure consistent ATTR_* prefix across all attribution methods."""
+    """Ensure exact canonical label format across all methods."""
     lbl = label.strip()
     if lbl in ("LEGITIMATE", "ATTR_CONFIRMED_LEGITIMATE"):
         return "ATTR_CONFIRMED_LEGITIMATE"
@@ -22,8 +22,12 @@ def canonicalize_label(label: str) -> str:
         return "ATTR_ABSTAIN_DEGRADED"
     if lbl in ("ABSTAIN_INDISTINGUISHABLE", "ATTR_ABSTAIN_INDISTINGUISHABLE"):
         return "ATTR_ABSTAIN_INDISTINGUISHABLE"
-    if lbl.startswith("STAGE(") and not lbl.startswith("ATTR_"):
-        return f"ATTR_{lbl}"
+    if lbl in ("ATTR_STAGE(1)", "STAGE(1)", "ATTR_STAGE_1", "STAGE_1", "ATTR_STAGE_FORWARD_TRANSIT"):
+        return "ATTR_STAGE_FORWARD_TRANSIT"
+    if lbl in ("ATTR_STAGE(2)", "STAGE(2)", "ATTR_STAGE_2", "STAGE_2", "ATTR_STAGE_CONSUMER_CUSTODY"):
+        return "ATTR_STAGE_CONSUMER_CUSTODY"
+    if lbl in ("ATTR_STAGE(3)", "STAGE(3)", "ATTR_STAGE_3", "STAGE_3", "ATTR_STAGE_REVERSE_TRANSIT"):
+        return "ATTR_STAGE_REVERSE_TRANSIT"
     return lbl
 
 
@@ -42,7 +46,7 @@ def predict_trinetra_link(
 ) -> Attribution:
     """
     Run full TriNetra-Link pipeline on a journey:
-      1. Quality Gate evaluations -> q_k in [0, 1]
+      1. Quality Gate evaluations -> q_k in [0, 1] per modality (photo, weight, seal)
       2. Multimodal physical reconciliation vs CP1 baseline -> z_k in {INTACT, ANOM, UNK}
       3. Attribution rule (Algorithm 1 or Bayesian posterior coalescence)
     Supports ablation configurations:
@@ -61,7 +65,11 @@ def predict_trinetra_link(
             rationale_text="Missing or incomplete checkpoint observations (fewer than 4 checkpoints).",
         )
 
-    gate = QualityGate(theta=theta)
+    # Pass scales_config to QualityGate so scale_sigma is known
+    gate_cfg = None
+    if scales_config:
+        gate_cfg = {"scale": {"scales": scales_config.get("scales", {}), "sigma_g": 1.0}}
+    gate = QualityGate(config=gate_cfg, theta=theta)
     q_reports: Dict[int, QualityReport] = {}
     q_k: Dict[int, float] = {}
 
@@ -77,18 +85,27 @@ def predict_trinetra_link(
                 journey_code=code,
                 cp_index=k,
                 q_k=1.0,
-                feature_scores={"q_scale": 1.0, "q_temporal": 1.0, "q_image": 1.0},
+                feature_scores={
+                    "q_scale": 1.0,
+                    "q_weight": 1.0,
+                    "q_temporal": 1.0,
+                    "q_seal": 1.0,
+                    "q_image": 1.0,
+                    "q_photo": 1.0,
+                },
                 passed=True,
                 reasons=[],
             )
         else:
-            qr = gate.evaluate(cp)
+            prev_cp = cps.get(k - 1) if k > 1 else None
+            qr = gate.evaluate(cp, previous_observation=prev_cp)
 
         q_reports[k] = qr
         q_k[k] = qr.q_k
 
     # 2. Multimodal Reconciliation
     z_k: Dict[int, str] = {1: "INTACT"}
+    modality_evidence: Dict[int, Dict[str, Tuple[str, float]]] = {}
 
     for k in (2, 3, 4):
         cp_k = cps.get(k)
@@ -97,6 +114,9 @@ def predict_trinetra_link(
             continue
 
         qr = q_reports[k]
+        q_weight = qr.feature_scores.get("q_weight", qr.feature_scores.get("q_scale", 1.0))
+        q_seal = qr.feature_scores.get("q_seal", qr.feature_scores.get("q_temporal", 1.0))
+        q_photo = qr.feature_scores.get("q_photo", qr.feature_scores.get("q_image", 1.0))
 
         # Weight test
         tare_delta = sum(
@@ -133,27 +153,48 @@ def predict_trinetra_link(
                 visual_threshold=visual_threshold,
             )
 
-        # Modality fusion
-        trusted_weight = qr.feature_scores.get("q_scale", 1.0) >= theta
-        trusted_ident = qr.feature_scores.get("q_temporal", 1.0) >= theta
-        trusted_vis = qr.feature_scores.get("q_image", 1.0) >= theta
+        # Per-modality trust determinations:
+        # A bad weight reading does not make photos or seal untrusted
+        trusted_weight = (
+            (q_weight >= theta)
+            and (weight_anom != "UNKNOWN")
+            and bool(cp_k.weights_g)
+            and bool(cp1.weights_g)
+            and cp_k.scale_status in ("OK", "MANUAL", "SETTLED")
+        )
+        trusted_seal = (q_seal >= theta) and bool(cp_k.seal_qr or cp_k.serial or cp_k.imei)
+        trusted_photo = (q_photo >= theta) and bool(cp_k.images) and not disable_visual
+
+        weight_obs = "ANOM" if weight_anom is True else ("INTACT" if weight_anom is False else "UNK")
+        seal_obs = "ANOM" if identity_anom else "INTACT"
+        photo_obs = "ANOM" if visual_anom else "INTACT"
+
+        modality_evidence[k] = {
+            "weight": (weight_obs if trusted_weight else "UNK", q_weight if trusted_weight else 0.0),
+            "seal": (seal_obs if trusted_seal else "UNK", q_seal if trusted_seal else 0.0),
+            "photo": (photo_obs if trusted_photo else "UNK", q_photo if trusted_photo else 0.0),
+        }
 
         anomalies_present = []
         agreements_present = []
 
         if trusted_weight:
-            (anomalies_present if weight_anom else agreements_present).append("weight")
-        if trusted_ident:
-            (anomalies_present if identity_anom else agreements_present).append("identity")
-        if trusted_vis and not disable_visual:
-            (anomalies_present if visual_anom else agreements_present).append("visual")
+            (anomalies_present if weight_anom is True else agreements_present).append("weight")
+        if trusted_seal:
+            (anomalies_present if identity_anom else agreements_present).append("seal")
+        if trusted_photo:
+            (anomalies_present if visual_anom else agreements_present).append("photo")
 
         if anomalies_present:
             z_k[k] = "ANOM"
-        elif agreements_present and qr.q_k >= theta:
+        elif agreements_present:
             z_k[k] = "INTACT"
         else:
             z_k[k] = "UNK"
+
+        # Checkpoint trust in T: trusted if at least one modality provides trusted observation
+        trusted_mod_scores = [q for (obs, q) in modality_evidence[k].values() if q >= theta]
+        q_k[k] = max(trusted_mod_scores) if trusted_mod_scores else 0.0
 
     # 3. Attribution Rule Selection
     if mode == "bayes":
@@ -162,6 +203,8 @@ def predict_trinetra_link(
             q_k=q_k,
             z_k=z_k,
             tau=tau,
+            theta=theta,
+            modality_evidence=modality_evidence,
         )
     else:
         # Default: Algorithm 1 (deterministic interval attribution)

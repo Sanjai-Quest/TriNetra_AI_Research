@@ -34,17 +34,17 @@ def fuse_checkpoint_observations(
     trusted_modalities: List[str] = []
 
     # Scale / weight trust
-    q_scale = scores.get("q_scale", 1.0)
-    if q_scale >= theta:
+    q_weight = scores.get("q_weight", scores.get("q_scale", 1.0))
+    if q_weight >= theta and obs_baseline.weights_g and obs_current.weights_g:
         trusted_modalities.append("weight")
 
     # Identity trust: serial or QR present and temporal order intact
-    q_temp = scores.get("q_temporal", 1.0)
+    q_temp = scores.get("q_seal", scores.get("q_temporal", 1.0))
     if q_temp >= theta and (obs_current.serial or obs_current.seal_qr or obs_current.imei):
         trusted_modalities.append("identity")
 
     # Visual trust
-    q_image = scores.get("q_image", 1.0)
+    q_image = scores.get("q_photo", scores.get("q_image", 1.0))
     if q_image >= theta and obs_current.images:
         trusted_modalities.append("visual")
 
@@ -56,6 +56,8 @@ def fuse_checkpoint_observations(
         z=z_weight,
         scales_file_path=scales_file_path,
     )
+    if weight_anom == "UNKNOWN" and "weight" in trusted_modalities:
+        trusted_modalities.remove("weight")
 
     # Identity
     id_anom, mismatches = reconcile_identity(
@@ -77,7 +79,7 @@ def fuse_checkpoint_observations(
         fused_state = "UNK"
     else:
         anomalies_in_trusted = []
-        if "weight" in trusted_modalities and weight_anom:
+        if "weight" in trusted_modalities and weight_anom is True:
             anomalies_in_trusted.append("weight")
         if "identity" in trusted_modalities and id_anom:
             anomalies_in_trusted.append("identity")

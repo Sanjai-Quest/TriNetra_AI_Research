@@ -11,7 +11,7 @@
 | Gate | Protocol Requirement | Status | Verification Reference |
 |---|---|---|---|
 | **Gate G-1** | Protocol Amendment v2.6 committed and tagged `v2.6.0-amendment` | **PASSED** | Git tag `v2.6.0-amendment`, commit `7e4873c` |
-| **Gate G-2** | Truth-ledger commitment manifest for 120 journeys (salted SHA-256) committed with determinability rule hash | **PASSED** | `research/truth_manifest_v2.6.json` (SHA-256: `64-char committed`) |
+| **Gate G-2** | Truth-ledger commitment manifest for 120 journeys (salted SHA-256) committed with determinability rule hash | **SUPERSEDED** | Regenerate with make_staging_kit.py before staging |
 | **Gate G-3** | 10-journey pilot completed end-to-end; app, scale & SOP verified; quality floors frozen | **PENDING** | Awaiting physical pilot staging and capture sheets recorded by human operator |
 | **Gate G-4** | Scale characterisation completed ($\ge 3$ loads $\times 30$ readings) and `scales.json` committed | **PENDING** | Awaiting physical scale readings ($\ge 3$ loads $\times 30$ readings) recorded by human operator |
 
@@ -62,11 +62,6 @@
 
 ## 3. Physical Trial Data Execution Status
 
-### What HAS been executed:
-- **Algorithmic Benchmarking:** Full algorithmic pipeline executed across all 96 test split journeys and 24 calibration journeys using controlled benchmark fixtures derived strictly from the pre-committed physical staging assignments and determinability rules.
-- **Controlled Perturbation Tests:** Stress tests simulating sensor drops, optical blur, photometric darkening, and mechanical drift under mathematical model specifications.
-- **Integrity Validation:** 100% of remediation guards (`testing/run_remediation_guards.py`) and data integrity linters (`scripts/data_lint.py`) executed and passing with 0 errors.
+0 real journeys collected. Only a watermarked synthetic dry run has been executed.
+No courier network is involved; journeys will be staged by the team.
 
-### What has NOT been executed:
-- **Physical Courier Trial in Transit:** Physical parcel handling across active commercial courier networks remains to be completed following laboratory preparation.
-- **Zero Fabrication Guarantee:** No live physical trial telemetry, network latencies, or fake sensor readings have been fabricated. All embargoed ground truth files remain strictly uncommitted and isolated in `data/restricted/`.

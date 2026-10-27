@@ -37,7 +37,11 @@ def compute_macro_f1(
     """
     Compute Macro-F1 across stages S1, S2, S3 for determinable journeys.
     """
-    stages = target_stages or ["ATTR_STAGE(1)", "ATTR_STAGE(2)", "ATTR_STAGE(3)"]
+    stages = target_stages or [
+        "ATTR_STAGE_FORWARD_TRANSIT",
+        "ATTR_STAGE_CONSUMER_CUSTODY",
+        "ATTR_STAGE_REVERSE_TRANSIT",
+    ]
     y_true: List[str] = []
     y_pred: List[str] = []
 
@@ -79,7 +83,7 @@ def compute_abstention_metrics(
             non_det_total += 1
             if pred in abstain_labels:
                 non_det_appropriate += 1
-            elif pred.startswith("ATTR_STAGE("):
+            elif pred.startswith("ATTR_STAGE"):
                 non_det_unwarranted += 1
         elif omega == "OBS_DETERMINABLE":
             det_total += 1

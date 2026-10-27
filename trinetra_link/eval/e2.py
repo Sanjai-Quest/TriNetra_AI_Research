@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import matplotlib
+matplotlib.use("Agg")  # non-interactive backend — no Tk/display needed
 import matplotlib.pyplot as plt
 import numpy as np
 

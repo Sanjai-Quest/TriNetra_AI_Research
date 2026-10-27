@@ -37,16 +37,25 @@ class QualityGate:
         reasons: List[str] = []
         feature_scores: Dict[str, float] = {}
 
-        # 1. Scale Telemetry Gate
+        # 1. Scale Telemetry Gate (using 4*sigma stability rule)
+        scale_sigma = None
+        if observation.scale_id and "scales" in scale_cfg:
+            scale_sigma = scale_cfg["scales"].get(observation.scale_id, {}).get("sigma_g")
+        if scale_sigma is None:
+            scale_sigma = scale_cfg.get("sigma_g", 1.0)
+
         q_scale, scale_reasons = evaluate_scale_readings(
             weights_g=observation.weights_g,
             scale_status=observation.scale_status,
             min_readings=scale_cfg.get("min_readings", 3),
             min_weight_g=scale_cfg.get("min_weight_g", 1.0),
-            max_spread_g=scale_cfg.get("max_spread_g", 2.0),
+            max_spread_g=scale_cfg.get("max_spread_g"),
+            scale_sigma=scale_sigma,
             allowed_statuses=scale_cfg.get("allowed_statuses", ["OK", "MANUAL", "SETTLED"]),
         )
+        q_weight = q_scale if observation.weights_g else 0.0
         feature_scores["q_scale"] = q_scale
+        feature_scores["q_weight"] = q_weight
         reasons.extend(scale_reasons)
 
         # 2. Temporal Continuity & Calibration Gate
@@ -60,8 +69,13 @@ class QualityGate:
         feature_scores["q_temporal"] = q_temp
         reasons.extend(temp_reasons)
 
+        # Seal modality trust: temporal continuity intact + seal/serial presence
+        has_seal = bool(observation.seal_qr or observation.serial or observation.imei)
+        q_seal = q_temp if has_seal else 0.0
+        feature_scores["q_seal"] = q_seal
+
         # 3. Photographic Asset Metadata Gates
-        q_image = 1.0
+        q_image = 0.0
         if observation.images:
             image_scores: List[float] = []
             for img_ref in observation.images:
@@ -127,10 +141,13 @@ class QualityGate:
             if image_scores:
                 # Geometric mean across sides
                 q_image = float(np.prod(image_scores) ** (1.0 / len(image_scores)))
-        feature_scores["q_image"] = q_image
+        q_photo = q_image
+        feature_scores["q_photo"] = q_photo
+        feature_scores["q_image"] = q_photo
 
-        # Overall multiplicative quality score
-        q_k = float(np.clip(q_scale * q_temp * q_image, 0.0, 1.0))
+        # Per-modality trust: a bad weight reading does not make photos untrusted.
+        # Checkpoint is usable if at least one modality provides valid observations.
+        q_k = float(np.clip(max(q_weight, q_photo, q_seal), 0.0, 1.0))
         passed = bool(q_k >= self.theta)
 
         return QualityReport(

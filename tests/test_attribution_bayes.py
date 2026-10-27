@@ -23,14 +23,14 @@ def test_qk_zero_makes_checkpoint_uninformative():
 
 def test_posterior_monotonicity_in_qk():
     """Increasing q_k for a diagnostic checkpoint monotonically increases the target stage posterior."""
-    # Observations indicate ATTR_STAGE(1): CP1 intact, CP2..CP4 anom
+    # Observations indicate ATTR_STAGE_FORWARD_TRANSIT: CP1 intact, CP2..CP4 anom
     z_k = {1: "INTACT", 2: "ANOM", 3: "ANOM", 4: "ANOM"}
 
     posteriors = []
     for q2 in [0.1, 0.3, 0.6, 0.9]:
         q_k = {1: 1.0, 2: q2, 3: 0.5, 4: 0.5}
         res = attribute_bayes("TEST-MONO", q_k, z_k, tau=0.50)
-        posteriors.append(res.posterior["ATTR_STAGE(1)"])
+        posteriors.append(res.posterior["ATTR_STAGE_FORWARD_TRANSIT"])
 
     # Strict monotonic increase
     for i in range(len(posteriors) - 1):
@@ -41,8 +41,8 @@ def test_confident_posterior_resolution():
     q_k = {1: 0.95, 2: 0.95, 3: 0.95, 4: 0.95}
     z_k = {1: "INTACT", 2: "INTACT", 3: "ANOM", 4: "ANOM"}
     res = attribute_bayes("TEST-CONF", q_k, z_k, tau=0.80)
-    assert res.label == "ATTR_STAGE(2)"
-    assert res.posterior["ATTR_STAGE(2)"] >= 0.80
+    assert res.label == "ATTR_STAGE_CONSUMER_CUSTODY"
+    assert res.posterior["ATTR_STAGE_CONSUMER_CUSTODY"] >= 0.80
     assert res.interval == [2, 3]
 
 

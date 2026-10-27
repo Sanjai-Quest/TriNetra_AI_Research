@@ -48,7 +48,7 @@ def predict_b2_endpoints(journey: Journey) -> Attribution:
         # Heuristic predicts S3 (or coarse unlocalized discrepancy)
         return Attribution(
             journey_code=code,
-            label="ATTR_STAGE(3)",
+            label="ATTR_STAGE_REVERSE_TRANSIT",
             interval=[1, 4],
             rationale_text=(
                 f"Baseline B2: Endpoint discrepancy detected between CP1 and CP4 "
