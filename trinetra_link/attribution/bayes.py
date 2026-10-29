@@ -102,8 +102,17 @@ def attribute_bayes(
     if best_p >= tau:
         # Confident resolution
         interval = stage_intervals.get(best_stage, [1, k_max])
-        label = best_stage
-        rationale = f"Bayesian attribution isolates {best_stage} with posterior {best_p:.4f} >= tau ({tau:.2f})."
+        # A checkpoint inside (a,b] with untrusted quality -> ABSTAIN_DEGRADED
+        if best_stage != "ATTR_CONFIRMED_LEGITIMATE" and any(q_k.get(k, 0.0) < theta for k in (interval[0], interval[1])):
+            label = "ATTR_ABSTAIN_DEGRADED"
+            interval = None
+            rationale = (
+                f"Candidate Bayesian stage {best_stage} bounding checkpoint quality < theta ({theta:.2f}). "
+                f"Degraded causal attribution."
+            )
+        else:
+            label = best_stage
+            rationale = f"Bayesian attribution isolates {best_stage} with posterior {best_p:.4f} >= tau ({tau:.2f})."
 
         return Attribution(
             journey_code=journey_code,

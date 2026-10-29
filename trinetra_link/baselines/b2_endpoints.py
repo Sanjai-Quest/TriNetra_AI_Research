@@ -45,15 +45,15 @@ def predict_b2_endpoints(journey: Journey) -> Attribution:
 
     if anomalous:
         # Endpoints comparison cannot localize intermediate stage:
-        # Heuristic predicts S3 (or coarse unlocalized discrepancy)
+        # Heuristic predicts consumer custody S2 (blame the returner)
         return Attribution(
             journey_code=code,
-            label="ATTR_STAGE_REVERSE_TRANSIT",
-            interval=[1, 4],
+            label="ATTR_STAGE_CONSUMER_CUSTODY",
+            interval=[2, 3],
             rationale_text=(
                 f"Baseline B2: Endpoint discrepancy detected between CP1 and CP4 "
                 f"(delta_weight={weight_diff:.2f}g, seal_diff={seal_diff}, serial_diff={serial_diff}). "
-                f"Intermediate stages unobserved; defaulted to terminal stage S3."
+                f"Intermediate stages unobserved; attributed to consumer custody."
             ),
         )
 

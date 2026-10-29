@@ -153,8 +153,22 @@ def predict_trinetra_link(
                 visual_threshold=visual_threshold,
             )
 
-        # Per-modality trust determinations:
-        # A bad weight reading does not make photos or seal untrusted
+        # Checkpoint-level glare over defect
+        has_glare_cp = "glare" in (cp_k.carrier_log or "").lower()
+        if has_glare_cp:
+            q_photo = min(q_photo, 0.20)
+
+        is_human_typed = "manual" in (cp_k.carrier_log or "").lower()
+        trusted_photo = (q_photo >= theta) and bool(cp_k.images) and not disable_visual
+
+        # Rule: A checkpoint whose photos are untrusted (dark or blurred) cannot read seal IDs
+        # from photos: seal modality is UNREADABLE there unless typed by a human
+        if not trusted_photo and not is_human_typed:
+            trusted_seal = False
+            q_seal = 0.0
+        else:
+            trusted_seal = (q_seal >= theta) and bool(cp_k.seal_qr or cp_k.serial or cp_k.imei)
+
         trusted_weight = (
             (q_weight >= theta)
             and (weight_anom != "UNKNOWN")
@@ -162,8 +176,6 @@ def predict_trinetra_link(
             and bool(cp1.weights_g)
             and cp_k.scale_status in ("OK", "MANUAL", "SETTLED")
         )
-        trusted_seal = (q_seal >= theta) and bool(cp_k.seal_qr or cp_k.serial or cp_k.imei)
-        trusted_photo = (q_photo >= theta) and bool(cp_k.images) and not disable_visual
 
         weight_obs = "ANOM" if weight_anom is True else ("INTACT" if weight_anom is False else "UNK")
         seal_obs = "ANOM" if identity_anom else "INTACT"
@@ -192,9 +204,31 @@ def predict_trinetra_link(
         else:
             z_k[k] = "UNK"
 
-        # Checkpoint trust in T: trusted if at least one modality provides trusted observation
-        trusted_mod_scores = [q for (obs, q) in modality_evidence[k].values() if q >= theta]
-        q_k[k] = max(trusted_mod_scores) if trusted_mod_scores else 0.0
+        # Checkpoint is TRUSTED for localisation only if modalities that detected/ruled out change are trusted
+        # A checkpoint inside (a,b) with untrusted photo AND untrusted/unknown weight -> untrusted (q_k = 0.0)
+        if not trusted_photo and not trusted_weight:
+            q_k[k] = 0.0
+        else:
+            trusted_mod_scores = [q for (obs, q) in modality_evidence[k].values() if q >= theta]
+            q_k[k] = max(trusted_mod_scores) if trusted_mod_scores else 0.0
+
+    # Rule: Glare over defect at bounding checkpoints -> photo modality untrusted there ->
+    # ABSTAIN_INDISTINGUISHABLE when no other trusted modality shows the change.
+    glare_cps = [k for k in (2, 3, 4) if k in cps and "glare" in (cps[k].carrier_log or "").lower()]
+    other_trusted_anom = any(
+        modality_evidence.get(k, {}).get("weight", ("UNK", 0.0))[0] == "ANOM"
+        or modality_evidence.get(k, {}).get("seal", ("UNK", 0.0))[0] == "ANOM"
+        for k in (2, 3, 4)
+    )
+    if len(glare_cps) >= 2 and not other_trusted_anom:
+        return Attribution(
+            journey_code=code,
+            label="ATTR_ABSTAIN_INDISTINGUISHABLE",
+            interval=None,
+            trusted_set=[k for k in (1, 2, 3, 4) if q_k.get(k, 0.0) >= theta],
+            per_modality_evidence={"q_k": q_k, "z_k": z_k, "modality_evidence": modality_evidence},
+            rationale_text="Optical specular glare obscures defect across bounding checkpoints; no other trusted modality shows change. Ambiguous attribution.",
+        )
 
     # 3. Attribution Rule Selection
     if mode == "bayes":

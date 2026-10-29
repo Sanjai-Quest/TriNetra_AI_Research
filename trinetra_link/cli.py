@@ -466,6 +466,7 @@ def eval_e1_cmd(
     run_id: Optional[str] = typer.Option(None, "--run-id", help="Experiment run ID"),
     bootstrap: int = typer.Option(2000, "--bootstrap", "-b", help="Bootstrap resamples for 95% CIs"),
     allow_synthetic_dry_run: bool = typer.Option(False, "--allow-synthetic-dry-run", help="Explicitly permit evaluation on synthetic demo data (refused by default)"),
+    mask: str = typer.Option("full", "--mask", help="Evidence mask: 'full' (all CP1-CP4 evidence) or 'field' (weights only at CP1 and CP4)"),
 ) -> None:
     """Run Primary Benchmark Comparison against baselines B1..B5 on test split (E1)."""
     if split != "test":
@@ -481,15 +482,26 @@ def eval_e1_cmd(
             run_id=run_id,
             b_bootstrap=bootstrap,
             allow_synthetic_dry_run=allow_synthetic_dry_run,
+            mask=mask,
         )
-        typer.secho(f"Experiment E1 Completed Successfully -> Run ID: {res['run_id']}", fg=typer.colors.GREEN)
+        typer.secho(f"Experiment E1 Completed Successfully -> Run ID: {res['run_id']} (mask={mask})", fg=typer.colors.GREEN)
         typer.echo(f"  Artifacts saved to: {Path(res['artifacts']['csv_table']).parent}")
         typer.echo(f"  Table III (CSV):    {res['artifacts']['csv_table']}")
         typer.echo(f"  Table III (LaTeX):  {res['artifacts']['latex_table']}")
+        typer.echo(f"  Subgroups (CSV):    {res['artifacts']['subgroups_csv']}")
         typer.echo(f"  Risk-Coverage Fig:  {res['artifacts']['figure_png']}")
-        typer.echo("\nSummary Results (Stage Accuracy & AAR):")
+        typer.echo(f"\nSummary Results [mask={mask}] (Stage Accuracy & AAR):")
         for row in res["results_summary"]:
             typer.echo(f"  {row['method']:25s} | Acc (DET): {row['stage_acc_det']:.3f} {row['stage_acc_ci']} | AAR: {row['aar_non_det']:.3f}")
+
+        if res.get("subgroup_breakdowns"):
+            typer.echo("\nSubgroup Breakdown (weight_matched & mass_change_g):")
+            for s in res["subgroup_breakdowns"]:
+                if s["method"] in ("TriNetra-Link (Alg 1)", "B1 (CP4-only)", "B2 (Endpoints CP1+CP4)"):
+                    typer.echo(
+                        f"  [{s['subgroup_dimension']}={s['subgroup_value']}] {s['method']:23s} | "
+                        f"Acc (DET): {s['stage_acc_det']:.3f} | AAR: {s['aar_non_det']:.3f} (N={s['n_total']})"
+                    )
     except Exception as e:
         typer.secho(f"E1 evaluation failed: {e}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
@@ -644,32 +656,69 @@ def demo_run_cmd(
     typer.secho(f"Fitted calibration thresholds saved -> {fit_res['saved_path']}", fg=typer.colors.GREEN)
     typer.echo(f"  theta = {fit_res['theta']:.2f}, z = {fit_res['z_weight']:.2f}, tau = {fit_res['tau_bayes']:.2f}")
 
-    # Step 3: Run primary benchmark comparison on synthetic test split (96 journeys)
+    # Step 3: Run primary benchmark comparison on synthetic test split under both masks
     typer.secho("\n[DEMO STEP 2/2] Evaluating TriNetra-Link vs baselines on synthetic test split (96 journeys)...", fg=typer.colors.CYAN)
-    eval_res = evaluate_e1(
+    
+    # Run under full mask
+    typer.secho("--> Evaluating with mask='full' (all evidence at CP1-CP4)...", fg=typer.colors.BLUE)
+    eval_res_full = evaluate_e1(
         split_manifest_path=manifest_file,
         staging_log_path=demo_dir / "staging_log_120.csv",
         scales_path=demo_dir / "scales.json",
         output_dir=run_dir / "eval",
-        run_id=f"SYNTHETIC_DRY_RUN_{timestamp}",
+        run_id=f"SYNTHETIC_DRY_RUN_{timestamp}_full",
         b_bootstrap=bootstrap,
         allow_synthetic_dry_run=True,
         is_demo_run=True,
         skip_llm_if_no_key=skip_llm,
         theta=fit_res["theta"],
+        mask="full",
+    )
+
+    # Run under field mask
+    typer.secho("--> Evaluating with mask='field' (weights only at CP1 and CP4; CP2/CP3 photos/seals only)...", fg=typer.colors.BLUE)
+    eval_res_field = evaluate_e1(
+        split_manifest_path=manifest_file,
+        staging_log_path=demo_dir / "staging_log_120.csv",
+        scales_path=demo_dir / "scales.json",
+        output_dir=run_dir / "eval",
+        run_id=f"SYNTHETIC_DRY_RUN_{timestamp}_field",
+        b_bootstrap=bootstrap,
+        allow_synthetic_dry_run=True,
+        is_demo_run=True,
+        skip_llm_if_no_key=skip_llm,
+        theta=fit_res["theta"],
+        mask="field",
     )
 
     typer.secho("\n" + "=" * 76, fg=typer.colors.YELLOW)
     typer.secho("  SYNTHETIC DRY RUN COMPLETE — NOT EMPIRICAL RESULTS (DEMO FIXTURES ONLY)", fg=typer.colors.YELLOW, bold=True)
     typer.secho("=" * 76, fg=typer.colors.YELLOW)
     typer.echo(f"Run Directory:     {run_dir}")
-    typer.echo(f"Table III (CSV):   {eval_res['artifacts']['csv_table']}")
-    typer.echo(f"Table III (LaTeX): {eval_res['artifacts']['latex_table']}")
-    typer.echo(f"Risk-Coverage Fig: {eval_res['artifacts']['figure_png']}")
+    typer.echo(f"Table III Full:    {run_dir / 'eval' / 'table3_full.csv'}")
+    typer.echo(f"Table III Field:   {run_dir / 'eval' / 'table3_field.csv'}")
+    typer.echo(f"Subgroups Full:    {run_dir / 'eval' / 'table3_subgroups_full.csv'}")
+    typer.echo(f"Subgroups Field:   {run_dir / 'eval' / 'table3_subgroups_field.csv'}")
+    typer.echo(f"Risk-Coverage Fig: {eval_res_full['artifacts']['figure_png']}")
     typer.echo(f"Provenance:        {run_dir / 'eval' / 'provenance.json'}")
-    typer.echo("\nSummary of Evaluated Methods:")
-    for row in eval_res["results_summary"]:
+
+    typer.echo("\n--- Summary: Table III (mask=full) ---")
+    for row in eval_res_full["results_summary"]:
         typer.echo(f"  {row['method']:25s} | Acc (DET): {row['stage_acc_det']:.3f} {row['stage_acc_ci']} | AAR: {row['aar_non_det']:.3f}")
+
+    typer.echo("\n--- Summary: Table III (mask=field) ---")
+    for row in eval_res_field["results_summary"]:
+        typer.echo(f"  {row['method']:25s} | Acc (DET): {row['stage_acc_det']:.3f} {row['stage_acc_ci']} | AAR: {row['aar_non_det']:.3f}")
+
+    if eval_res_full.get("subgroup_breakdowns"):
+        typer.echo("\n--- Subgroup Breakdown (weight_matched & mass_change_g) [mask=full] ---")
+        for s in eval_res_full["subgroup_breakdowns"]:
+            if s["method"] in ("TriNetra-Link (Alg 1)", "TriNetra-Link (Bayes)", "B1 (CP4-only)", "B2 (Endpoints CP1+CP4)"):
+                typer.echo(
+                    f"  [{s['subgroup_dimension']}={s['subgroup_value']}] {s['method']:23s} | "
+                    f"Acc (DET): {s['stage_acc_det']:.3f} | AAR: {s['aar_non_det']:.3f} (N={s['n_total']})"
+                )
+
     typer.secho("\n[PASS] All demo artifacts successfully watermarked: 'SYNTHETIC DRY RUN — NOT A RESULT'", fg=typer.colors.GREEN)
 
 

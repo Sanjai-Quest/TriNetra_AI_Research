@@ -13,6 +13,9 @@ from trinetra_link.quality.features import (
 from trinetra_link.schema.models import CheckpointObservation, QualityReport
 
 
+_IMAGE_FEATS_CACHE: Dict[str, Dict[str, float]] = {}
+
+
 class QualityGate:
     """
     Evaluates physical observation telemetry and photographic metadata to produce
@@ -97,7 +100,14 @@ class QualityGate:
                     img_arr = cv2.imread(str(img_ref.path))
 
                 if img_arr is not None:
-                    feats = compute_image_quality_features(img_arr, exif_exposure=img_ref.exposure)
+                    use_cache = (image_arrays is None) and bool(img_ref.path)
+                    cache_key = str(img_ref.path) if use_cache else ""
+                    if use_cache and cache_key in _IMAGE_FEATS_CACHE:
+                        feats = _IMAGE_FEATS_CACHE[cache_key]
+                    else:
+                        feats = compute_image_quality_features(img_arr, exif_exposure=img_ref.exposure)
+                        if use_cache and cache_key:
+                            _IMAGE_FEATS_CACHE[cache_key] = feats
                     # Luminance gate
                     lum = feats["mean_luminance"]
                     min_l = img_cfg.get("min_luminance", 30.0)
@@ -142,12 +152,37 @@ class QualityGate:
                 # Geometric mean across sides
                 q_image = float(np.prod(image_scores) ** (1.0 / len(image_scores)))
         q_photo = q_image
+        # Glare over defect degrades photo modality trust
+        if "glare" in (observation.carrier_log or "").lower():
+            q_photo = min(q_photo, 0.20)
+            reasons.append("Camera glare over defect")
+
         feature_scores["q_photo"] = q_photo
         feature_scores["q_image"] = q_photo
 
-        # Per-modality trust: a bad weight reading does not make photos untrusted.
-        # Checkpoint is usable if at least one modality provides valid observations.
-        q_k = float(np.clip(max(q_weight, q_photo, q_seal), 0.0, 1.0))
+        # Rule: A checkpoint whose photos are untrusted cannot read seal IDs from photos
+        # Seal modality is UNREADABLE there unless the ID was typed by a human
+        is_human_typed = "manual" in (observation.carrier_log or "").lower()
+        if (q_photo < self.theta) and not is_human_typed:
+            q_seal = 0.0
+            feature_scores["q_seal"] = 0.0
+            reasons.append(f"Seal unreadable: photos untrusted (q_photo={q_photo:.3f} < {self.theta:.2f})")
+
+        # Checkpoint is TRUSTED for localisation only if modalities that detected or ruled out
+        # the change are trusted; a checkpoint with untrusted photo AND untrusted/unknown weight -> untrusted
+        has_valid_weights = bool(observation.weights_g) and observation.scale_status in ("OK", "MANUAL", "SETTLED")
+        if (q_photo < self.theta) and (q_weight < self.theta or not has_valid_weights):
+            q_k = 0.0
+        else:
+            trusted_scores = []
+            if q_photo >= self.theta:
+                trusted_scores.append(q_photo)
+            if q_weight >= self.theta and has_valid_weights:
+                trusted_scores.append(q_weight)
+            if q_seal >= self.theta:
+                trusted_scores.append(q_seal)
+            q_k = float(np.clip(max(trusted_scores) if trusted_scores else 0.0, 0.0, 1.0))
+
         passed = bool(q_k >= self.theta)
 
         return QualityReport(

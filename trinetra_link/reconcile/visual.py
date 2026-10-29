@@ -25,7 +25,7 @@ def order_corner_points(pts: np.ndarray) -> np.ndarray:
 def rectify_surface_homography(
     image: np.ndarray,
     corners: Optional[np.ndarray | List[List[float]]] = None,
-    target_dim: Tuple[int, int] = (512, 512),
+    target_dim: Tuple[int, int] = (256, 256),
 ) -> np.ndarray:
     """
     Rectify parcel face using a 4-point homography projection.
@@ -98,6 +98,9 @@ def compute_visual_change_score(
     return round(change_score, 4)
 
 
+_VISUAL_SCORE_CACHE: Dict[Tuple[str, str], float] = {}
+
+
 def reconcile_visual(
     obs_baseline: CheckpointObservation,
     obs_current: CheckpointObservation,
@@ -121,6 +124,25 @@ def reconcile_visual(
         return False, {}
 
     for side in common_sides:
+        ref_a = images_a[side]
+        ref_b = images_b[side]
+        # Fast path 1: identical cryptographic hash or path guarantees 0.0 change score
+        if (image_arrays_a is None and image_arrays_b is None) and (
+            (ref_a.sha256 and ref_b.sha256 and ref_a.sha256 == ref_b.sha256) or (ref_a.path and ref_a.path == ref_b.path)
+        ):
+            side_scores[side] = 0.0
+            continue
+
+        # Fast path 2: cached comparison score (only when loaded from files)
+        use_cache = (image_arrays_a is None and image_arrays_b is None) and bool(ref_a.path and ref_b.path)
+        cache_key = (str(ref_a.path), str(ref_b.path)) if use_cache else ("", "")
+        if use_cache and cache_key in _VISUAL_SCORE_CACHE:
+            score = _VISUAL_SCORE_CACHE[cache_key]
+            side_scores[side] = score
+            if score > visual_threshold:
+                is_anomaly = True
+            continue
+
         arr_a = image_arrays_a.get(side) if image_arrays_a else None
         arr_b = image_arrays_b.get(side) if image_arrays_b else None
 
@@ -131,6 +153,8 @@ def reconcile_visual(
 
         if arr_a is not None and arr_b is not None:
             score = compute_visual_change_score(arr_a, arr_b)
+            if use_cache and cache_key != ("", ""):
+                _VISUAL_SCORE_CACHE[cache_key] = score
             side_scores[side] = score
             if score > visual_threshold:
                 is_anomaly = True

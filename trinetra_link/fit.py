@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import numpy as np
 
 from trinetra_link.config import DERIVED_DATA_DIR, RESULTS_DIR
 from trinetra_link.schema.models import Journey
@@ -181,6 +182,8 @@ def fit_thresholds(
                     "has_weights": bool(cp_k.weights_g and cp1.weights_g and cp_k.scale_status in ("OK", "MANUAL", "SETTLED")),
                     "has_seal": bool(cp_k.seal_qr or cp_k.serial or cp_k.imei),
                     "has_photo": bool(cp_k.images),
+                    "has_glare": "glare" in (cp_k.carrier_log or "").lower(),
+                    "is_manual": "manual" in (cp_k.carrier_log or "").lower(),
                 }
 
             cal_data.append({
@@ -192,8 +195,8 @@ def fit_thresholds(
             })
 
         if cal_data:
-            # Grid search theta over candidate grid [0.40 .. 0.85]
-            candidates = [0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85]
+            # Grid search theta over candidate grid constrained to [0.30 .. 0.90]
+            candidates = [round(x, 2) for x in np.arange(0.30, 0.91, 0.05)]
             best_score = -1.0
             best_theta = 0.70
             best_acc = 0.0
@@ -218,9 +221,13 @@ def fit_thresholds(
                             q_k[k] = 0.0
                             continue
 
+                        has_glare_cp = d.get("has_glare", False)
+                        q_p = min(d["q_photo"], 0.20) if has_glare_cp else d["q_photo"]
+                        t_p = (q_p >= th) and d["has_photo"]
+                        is_manual = d.get("is_manual", False)
+                        # A checkpoint whose photos are untrusted cannot read seal IDs
+                        t_s = (d["q_seal"] >= th) and d["has_seal"] and (t_p or is_manual)
                         t_w = (d["q_weight"] >= th) and (d["weight_anom"] != "UNKNOWN") and d["has_weights"]
-                        t_s = (d["q_seal"] >= th) and d["has_seal"]
-                        t_p = (d["q_photo"] >= th) and d["has_photo"]
 
                         anom = []
                         agreed = []
@@ -238,17 +245,30 @@ def fit_thresholds(
                         else:
                             z_k[k] = "UNK"
 
-                        trusted_scores = []
-                        if t_w:
-                            trusted_scores.append(d["q_weight"])
-                        if t_s:
-                            trusted_scores.append(d["q_seal"])
-                        if t_p:
-                            trusted_scores.append(d["q_photo"])
-                        q_k[k] = max(trusted_scores) if trusted_scores else 0.0
+                        # A checkpoint with untrusted photo AND untrusted/unknown weight -> untrusted
+                        if not t_p and not t_w:
+                            q_k[k] = 0.0
+                        else:
+                            trusted_scores = []
+                            if t_w:
+                                trusted_scores.append(d["q_weight"])
+                            if t_s:
+                                trusted_scores.append(d["q_seal"])
+                            if t_p:
+                                trusted_scores.append(q_p)
+                            q_k[k] = max(trusted_scores) if trusted_scores else 0.0
 
-                    attr = attribute_interval_algorithm_1(item["code"], q_k=q_k, z_k=z_k, theta=th)
-                    preds.append(canonicalize_label(attr.label))
+                    glare_cps = [k for k in (2, 3, 4) if item["obs_k"].get(k, {}).get("has_glare", False)]
+                    other_anom = any(
+                        (item["obs_k"].get(k, {}).get("weight_anom") is True and (item["obs_k"].get(k, {}).get("q_weight", 0.0) >= th))
+                        or (item["obs_k"].get(k, {}).get("id_anom") and (item["obs_k"].get(k, {}).get("q_seal", 0.0) >= th) and (item["obs_k"].get(k, {}).get("q_photo", 0.0) >= th))
+                        for k in (2, 3, 4)
+                    )
+                    if len(glare_cps) >= 2 and not other_anom:
+                        preds.append("ATTR_ABSTAIN_INDISTINGUISHABLE")
+                    else:
+                        attr = attribute_interval_algorithm_1(item["code"], q_k=q_k, z_k=z_k, theta=th)
+                        preds.append(canonicalize_label(attr.label))
 
                 acc, _, _ = compute_stage_accuracy(preds, gts, omegas)
                 abs_m = compute_abstention_metrics(preds, gts, omegas)
@@ -258,7 +278,7 @@ def fit_thresholds(
 
                 if score > best_score or (abs(score - best_score) < 1e-6 and uar < best_uar):
                     best_score = score
-                    best_theta = th
+                    best_theta = float(np.clip(th, 0.30, 0.90))
                     best_acc = acc
                     best_aar = aar
                     best_uar = uar

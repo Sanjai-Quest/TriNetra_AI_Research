@@ -9,6 +9,8 @@ from fastapi.testclient import TestClient
 from trinetra_link.config import REPO_ROOT
 from trinetra_link.demo.make_synthetic_dryrun import generate_synthetic_dryrun_dataset
 from trinetra_link.eval.e1 import evaluate_e1
+from trinetra_link.eval.pipeline import predict_trinetra_link
+from trinetra_link.store.database import Store
 from trinetra_link.viewer.app import create_viewer_app
 
 
@@ -202,3 +204,49 @@ def test_viewer_demo_mode_api_and_blinding():
     assert "syntheticBanner" in page_resp.text
     assert "banner-synthetic" in page_resp.text
     assert "SYNTHETIC DRY RUN DEMO" in page_resp.text
+
+
+def test_synthetic_degraded_fixture_returns_abstain_degraded(synthetic_dataset):
+    """Verify that a synthetic DEGRADED journey fixture yields ATTR_ABSTAIN_DEGRADED."""
+    staging_log = Path(synthetic_dataset["staging_log"])
+    scales_path = Path(synthetic_dataset["scales_json"])
+    scales_config = json.loads(scales_path.read_text(encoding="utf-8"))
+    store = Store(Path(synthetic_dataset["output_dir"]) / "store.db")
+
+    with open(staging_log, "r", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+
+    degraded_rows = [r for r in rows if r["assigned_cell"] == "degraded_evidence"]
+    assert len(degraded_rows) > 0
+
+    journey = store.get_journey(degraded_rows[0]["journey_code"])
+    assert journey is not None
+
+    alg1_res = predict_trinetra_link(journey, mode="algorithm1", scales_config=scales_config)
+    assert alg1_res.label == "ATTR_ABSTAIN_DEGRADED"
+
+    bayes_res = predict_trinetra_link(journey, mode="bayes", scales_config=scales_config)
+    assert bayes_res.label == "ATTR_ABSTAIN_DEGRADED"
+
+
+def test_synthetic_ambiguous_fixture_returns_abstain_indistinguishable(synthetic_dataset):
+    """Verify that a synthetic AMBIGUOUS journey fixture yields ATTR_ABSTAIN_INDISTINGUISHABLE."""
+    staging_log = Path(synthetic_dataset["staging_log"])
+    scales_path = Path(synthetic_dataset["scales_json"])
+    scales_config = json.loads(scales_path.read_text(encoding="utf-8"))
+    store = Store(Path(synthetic_dataset["output_dir"]) / "store.db")
+
+    with open(staging_log, "r", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+
+    ambiguous_rows = [r for r in rows if r["assigned_cell"] == "ambiguous_evidence"]
+    assert len(ambiguous_rows) > 0
+
+    journey = store.get_journey(ambiguous_rows[0]["journey_code"])
+    assert journey is not None
+
+    alg1_res = predict_trinetra_link(journey, mode="algorithm1", scales_config=scales_config)
+    assert alg1_res.label == "ATTR_ABSTAIN_INDISTINGUISHABLE"
+
+    bayes_res = predict_trinetra_link(journey, mode="bayes", scales_config=scales_config)
+    assert bayes_res.label == "ATTR_ABSTAIN_INDISTINGUISHABLE"

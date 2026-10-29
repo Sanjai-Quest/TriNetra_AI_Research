@@ -7,10 +7,10 @@ from trinetra_link.schema.models import Attribution, CheckpointObservation, Jour
 
 def predict_b1_cp4(journey: Journey) -> Attribution:
     """
-    Baseline B1: CP4-Only Terminal Rule.
+    Baseline B1: Current Practice Terminal Rule.
     Only evaluates the terminal destination checkpoint CP4.
     If CP4 exhibits weight anomaly, seal alteration, or scale error, flags tampering.
-    Without earlier checkpoints, cannot resolve origin; attributes terminal stage ATTR_STAGE(3).
+    Current industry practice: blame the returner (customer custody S2).
     If CP4 is clean, attributes ATTR_CONFIRMED_LEGITIMATE.
     """
     code = journey.journey_code
@@ -37,9 +37,9 @@ def predict_b1_cp4(journey: Journey) -> Attribution:
     if cp4.scale_status in ("ERROR", "UNSTABLE"):
         return Attribution(
             journey_code=code,
-            label="ATTR_STAGE_REVERSE_TRANSIT",
-            interval=[3, 4],
-            rationale_text="Baseline B1: CP4 recorded scale error status; terminal anomaly flagged.",
+            label="ATTR_STAGE_CONSUMER_CUSTODY",
+            interval=[2, 3],
+            rationale_text="Baseline B1: CP4 recorded scale error status; attributed to consumer custody (current practice).",
         )
 
     # Weight comparison vs CP1 or nominal
@@ -57,11 +57,11 @@ def predict_b1_cp4(journey: Journey) -> Attribution:
     if is_weight_anomaly or is_seal_anomaly:
         return Attribution(
             journey_code=code,
-            label="ATTR_STAGE_REVERSE_TRANSIT",
-            interval=[3, 4],
+            label="ATTR_STAGE_CONSUMER_CUSTODY",
+            interval=[2, 3],
             rationale_text=(
-                f"Baseline B1: Terminal anomaly detected at CP4 (weight_diff={weight_diff:.2f}g, "
-                f"seal_anomaly={is_seal_anomaly}). Attributed to terminal stage S3."
+                f"Baseline B1 (Current Practice): Terminal anomaly detected at CP4 (weight_diff={weight_diff:.2f}g, "
+                f"seal_anomaly={is_seal_anomaly}). Attributed to consumer custody (blame returner)."
             ),
         )
 

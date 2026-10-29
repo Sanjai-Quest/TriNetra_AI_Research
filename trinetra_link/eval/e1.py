@@ -135,6 +135,7 @@ def evaluate_e1(
     is_demo_run: bool = False,
     skip_llm_if_no_key: bool = False,
     theta: Optional[float] = None,
+    mask: str = "full",
 ) -> Dict[str, Any]:
     """
     Execute Experiment E1: Primary Benchmark Evaluation on the 96-journey test split.
@@ -146,8 +147,15 @@ def evaluate_e1(
       - AURC & Risk-Coverage curves
       - Journey bootstrap 95% Confidence Intervals
       - Exact McNemar paired significance tests
+      - Subgroup breakdowns (weight_matched, mass_change_g)
+    Supports evidence masking:
+      - 'full': all evidence at CP1-CP4
+      - 'field': weights only at CP1 and CP4; CP2/CP3 keep photos, seals, notes but no weights
     """
-    rid = run_id or f"e1_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+    if mask not in ("full", "field"):
+        raise ValueError(f"Invalid mask mode '{mask}'. Expected 'full' or 'field'.")
+
+    rid = run_id or f"e1_{mask}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
     target_dir = Path(output_dir) if output_dir else RESULTS_DIR / rid
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -259,20 +267,63 @@ def evaluate_e1(
     scenario_cells: List[str] = []
     test_journeys: List[Journey] = []
 
+    # Subgroup columns: weight_matched and mass_change_g (read ONLY inside eval/)
+    has_wm_col = any("weight_matched" in r for r in test_staging)
+    has_mc_col = any("mass_change_g" in r for r in test_staging)
+    wm_subgroups: List[str] = []
+    mc_subgroups: List[str] = []
+
     for r in test_staging:
         code = r["journey_code"]
-        omega_star, expected_label, _ = derive_ground_truth(r)
+        omega_star, expected_label, _ = derive_ground_truth(r, mask=mask)
         ground_truth_labels.append(canonicalize_label(expected_label))
         omega_stars.append(omega_star)
         scenario_cells.append(r.get("assigned_cell", "unknown"))
 
+        # Extract subgroup attributes or fallback strictly to "n/a"
+        if has_wm_col and r.get("weight_matched") is not None and str(r.get("weight_matched")).strip() != "":
+            raw_wm = str(r.get("weight_matched")).strip().lower()
+            val_wm = "yes" if raw_wm in ("yes", "true", "1") else ("no" if raw_wm in ("no", "false", "0") else raw_wm)
+        else:
+            val_wm = "n/a"
+        wm_subgroups.append(val_wm)
+
+        if has_mc_col and r.get("mass_change_g") is not None and str(r.get("mass_change_g")).strip() != "":
+            try:
+                mc_f = abs(float(r.get("mass_change_g")))
+                if mc_f < 1.0:
+                    val_mc = "0"
+                elif mc_f < 20.0:
+                    val_mc = "10"
+                else:
+                    val_mc = ">=20"
+            except ValueError:
+                val_mc = "n/a"
+        else:
+            val_mc = "n/a"
+        mc_subgroups.append(val_mc)
+
         loaded_journey = None
         if demo_store:
             loaded_journey = demo_store.get_journey(code)
-        if loaded_journey:
-            test_journeys.append(loaded_journey)
-        else:
-            test_journeys.append(generate_benchmark_journey_from_staging(r))
+        if not loaded_journey:
+            loaded_journey = generate_benchmark_journey_from_staging(r)
+
+        # Apply field mask: weights only at CP1 and CP4; CP2/CP3 keep photos, seals, notes, but no weights
+        if mask == "field":
+            masked_cps = []
+            for cp in loaded_journey.checkpoints:
+                cp_copy = cp.model_copy(deep=True)
+                if cp_copy.cp_index in (2, 3):
+                    cp_copy.weights_g = []
+                masked_cps.append(cp_copy)
+            loaded_journey = Journey(
+                journey_code=loaded_journey.journey_code,
+                checkpoints=masked_cps,
+                metadata=dict(loaded_journey.metadata) if loaded_journey.metadata else {},
+            )
+
+        test_journeys.append(loaded_journey)
 
     # 4. Method Evaluators
     active_theta = theta if theta is not None else 0.70
@@ -354,12 +405,53 @@ def evaluate_e1(
             "significant_at_05": p_val < 0.05,
         }
 
-    # 6. Per-cell accuracy breakdown for TriNetra-Link
+    # 6. Per-cell and Subgroup accuracy breakdowns
     per_cell_breakdown = compute_per_cell_breakdown(ref_preds, ground_truth_labels, scenario_cells)
 
+    # Subgroup metrics: evaluate every method by weight_matched and mass_change_g bucket
+    subgroup_table: List[Dict[str, Any]] = []
+    subgroups_to_eval = [
+        ("weight_matched", sorted(list(set(wm_subgroups))), wm_subgroups),
+        ("mass_change_g", sorted(list(set(mc_subgroups))), mc_subgroups),
+    ]
+
+    for sg_name, sg_distinct, sg_assigned in subgroups_to_eval:
+        for sg_val in sg_distinct:
+            sg_idx = [i for i, v in enumerate(sg_assigned) if v == sg_val]
+            if not sg_idx:
+                continue
+            sub_gts = [ground_truth_labels[i] for i in sg_idx]
+            sub_omegas = [omega_stars[i] for i in sg_idx]
+
+            for m_name in methods.keys():
+                if m_name not in method_predictions:
+                    continue
+                sub_preds = [method_predictions[m_name][i] for i in sg_idx]
+                sub_confs = [method_confidences[m_name][i] for i in sg_idx]
+
+                s_acc, s_n_corr, s_n_det = compute_stage_accuracy(sub_preds, sub_gts, sub_omegas)
+                s_f1 = compute_macro_f1(sub_preds, sub_gts, sub_omegas)
+                s_abs = compute_abstention_metrics(sub_preds, sub_gts, sub_omegas)
+                _, _, s_aurc = compute_risk_coverage_curve(sub_preds, sub_confs, sub_gts, sub_omegas)
+
+                subgroup_table.append({
+                    "subgroup_dimension": sg_name,
+                    "subgroup_value": sg_val,
+                    "method": m_name,
+                    "stage_acc_det": s_acc,
+                    "macro_f1_s1_s3": s_f1,
+                    "aar_non_det": s_abs["aar"],
+                    "ubr_non_det": s_abs["ubr"],
+                    "uar_det": s_abs["uar"],
+                    "aurc": s_aurc,
+                    "n_total": len(sg_idx),
+                    "n_det": s_n_det,
+                    "n_correct": s_n_corr,
+                })
+
     # 7. Generate Plots (Risk-Coverage Curves as PNG and PDF)
-    fig_path_png = target_dir / "figure_risk_coverage.png"
-    fig_path_pdf = target_dir / "figure_risk_coverage.pdf"
+    fig_path_png = target_dir / f"figure_risk_coverage_{mask}.png"
+    fig_path_pdf = target_dir / f"figure_risk_coverage_{mask}.pdf"
     plt.figure(figsize=(7, 5), dpi=300)
 
     for m_name in ("TriNetra-Link (Alg 1)", "TriNetra-Link (Bayes)", "B3 (Detection=Origin)", "B5 (V3 Rules)"):
@@ -381,7 +473,7 @@ def evaluate_e1(
     plt.xlabel("Coverage (Fraction of Evaluated Journeys)", fontsize=11)
     plt.ylabel("Selective Risk (Error Rate)", fontsize=11)
     title_suffix = " [SYNTHETIC DEMO]" if (is_synthetic or is_demo_run) else ""
-    plt.title(f"Risk-Coverage Tradeoff on Test Cohort (E1){title_suffix}", fontsize=12, fontweight="bold")
+    plt.title(f"Risk-Coverage Tradeoff on Test Cohort (E1 - mask={mask}){title_suffix}", fontsize=12, fontweight="bold")
     plt.grid(True, linestyle="--", alpha=0.6)
     plt.legend(loc="upper left", fontsize=9)
     plt.tight_layout()
@@ -389,9 +481,9 @@ def evaluate_e1(
     plt.savefig(fig_path_pdf)
     plt.close()
 
-    # 8. Generate Tables: CSV and LaTeX Table III
-    csv_path = target_dir / "table3_primary_comparison.csv"
-    with open(csv_path, "w", encoding="utf-8") as fp:
+    # 8. Generate Tables: CSV (table3_full.csv / table3_field.csv) and LaTeX Table III
+    csv_mask_path = target_dir / f"table3_{mask}.csv"
+    with open(csv_mask_path, "w", encoding="utf-8") as fp:
         if is_synthetic or is_demo_run:
             fp.write("# SYNTHETIC DRY RUN — NOT A RESULT (DEMO DATA ONLY)\n")
         fp.write("Method,Stage Accuracy (DET),95% CI,Macro-F1 (S1-S3),AAR (Non-DET),UBR (Non-DET),UAR (DET),AURC\n")
@@ -401,11 +493,37 @@ def evaluate_e1(
                 f"{r['aar_non_det']},{r['ubr_non_det']},{r['uar_det']},{r['aurc']}\n"
             )
 
-    latex_path = target_dir / "table3_primary_comparison.tex"
+    # Maintain primary comparison table for backward compatibility
+    csv_primary_path = target_dir / "table3_primary_comparison.csv"
+    if mask == "full" or not csv_primary_path.exists():
+        with open(csv_primary_path, "w", encoding="utf-8") as fp:
+            if is_synthetic or is_demo_run:
+                fp.write("# SYNTHETIC DRY RUN — NOT A RESULT (DEMO DATA ONLY)\n")
+            fp.write("Method,Stage Accuracy (DET),95% CI,Macro-F1 (S1-S3),AAR (Non-DET),UBR (Non-DET),UAR (DET),AURC\n")
+            for r in results_table:
+                fp.write(
+                    f"{r['method']},{r['stage_acc_det']},{r['stage_acc_ci']},{r['macro_f1_s1_s3']},"
+                    f"{r['aar_non_det']},{r['ubr_non_det']},{r['uar_det']},{r['aurc']}\n"
+                )
+
+    # Subgroups breakdown CSV
+    subgroups_csv_path = target_dir / f"table3_subgroups_{mask}.csv"
+    with open(subgroups_csv_path, "w", encoding="utf-8") as fp:
+        if is_synthetic or is_demo_run:
+            fp.write("# SYNTHETIC DRY RUN — NOT A RESULT (DEMO DATA ONLY)\n")
+        fp.write("Dimension,Subgroup,Method,Stage Accuracy (DET),Macro-F1 (S1-S3),AAR (Non-DET),UBR (Non-DET),UAR (DET),AURC,N_Total,N_DET\n")
+        for s in subgroup_table:
+            fp.write(
+                f"{s['subgroup_dimension']},{s['subgroup_value']},{s['method']},{s['stage_acc_det']:.4f},"
+                f"{s['macro_f1_s1_s3']:.4f},{s['aar_non_det']:.4f},{s['ubr_non_det']:.4f},{s['uar_det']:.4f},{s['aurc']:.4f},"
+                f"{s['n_total']},{s['n_det']}\n"
+            )
+
+    latex_path = target_dir / f"table3_{mask}.tex"
     with open(latex_path, "w", encoding="utf-8") as fp:
         if is_synthetic or is_demo_run:
             fp.write("% SYNTHETIC DRY RUN — NOT A RESULT (DEMO DATA ONLY)\n")
-        fp.write("% TriNetra-Link Primary Experimental Comparison (Table III)\n")
+        fp.write(f"% TriNetra-Link Primary Experimental Comparison (Table III - mask={mask})\n")
         fp.write("\\begin{table*}[t]\n\\centering\n\\small\n")
         fp.write("\\begin{tabular}{lcccccccc}\n\\toprule\n")
         fp.write("\\textbf{Method} & \\textbf{Acc (DET)} & \\textbf{95\\% CI} & \\textbf{Macro-F1} & \\textbf{AAR} & \\textbf{UBR} & \\textbf{UAR} & \\textbf{AURC} \\\\\n\\midrule\n")
@@ -416,26 +534,39 @@ def evaluate_e1(
             )
         fp.write("\\bottomrule\n\\end{tabular}\n")
         caption_str = (
-            "\\caption{\\textbf{[SYNTHETIC DRY RUN — NOT A RESULT]} Demonstration benchmark comparison across 96 synthetic test journeys (E1).}\n"
+            f"\\caption{{\\textbf{{[SYNTHETIC DRY RUN — NOT A RESULT]}} Demonstration benchmark comparison across 96 synthetic test journeys (E1 - mask={mask}).}}\n"
             if (is_synthetic or is_demo_run)
-            else "\\caption{Primary benchmark comparison across 96 physical test journeys (E1).}\n"
+            else f"\\caption{{Primary benchmark comparison across 96 physical test journeys (E1 - mask={mask}).}}\n"
         )
         fp.write(caption_str)
-        fp.write("\\label{tab:table3_primary}\n\\end{table*}\n")
+        fp.write(f"\\label{{tab:table3_{mask}}}\n\\end{{table*}}\n")
+
+    # Also keep table3_primary_comparison.tex for compatibility
+    latex_primary_path = target_dir / "table3_primary_comparison.tex"
+    if mask == "full" or not latex_primary_path.exists():
+        with open(latex_primary_path, "w", encoding="utf-8") as fp:
+            with open(latex_path, "r", encoding="utf-8") as in_fp:
+                fp.write(in_fp.read())
 
     # 9. Provenance Manifest
     prov = {
         "experiment": "E1",
+        "mask": mask,
         "run_id": rid,
         "completed_at_utc": datetime.now(timezone.utc).isoformat(),
         "total_test_journeys": len(test_staging),
         "determinability_rule_sha256": get_determinability_rule_hash(),
         "bootstrap_iterations": b_bootstrap,
         "results_summary": results_table,
+        "subgroup_breakdowns": subgroup_table,
         "mcnemar_vs_baselines": mcnemar_results,
         "per_cell_breakdown": per_cell_breakdown,
         "artifacts": {
-            "csv_table": str(csv_path),
+            "csv_table": str(csv_mask_path),
+            "csv_primary": str(csv_primary_path),
+            "table_full": str(target_dir / "table3_full.csv") if mask == "full" else None,
+            "table_field": str(target_dir / "table3_field.csv") if mask == "field" else None,
+            "subgroups_csv": str(subgroups_csv_path),
             "latex_table": str(latex_path),
             "figure_png": str(fig_path_png),
             "figure_pdf": str(fig_path_pdf),
@@ -447,9 +578,15 @@ def evaluate_e1(
         prov["synthetic_dry_run"] = True
         prov["disclaimer"] = "Generated from programmatic synthetic demo fixtures. Not an empirical research result."
 
-    prov_path = target_dir / "provenance.json"
+    prov_path = target_dir / f"provenance_{mask}.json"
     with open(prov_path, "w", encoding="utf-8") as fp:
         json.dump(prov, fp, indent=2)
         fp.write("\n")
+
+    prov_main_path = target_dir / "provenance.json"
+    if mask == "full" or not prov_main_path.exists():
+        with open(prov_main_path, "w", encoding="utf-8") as fp:
+            json.dump(prov, fp, indent=2)
+            fp.write("\n")
 
     return prov

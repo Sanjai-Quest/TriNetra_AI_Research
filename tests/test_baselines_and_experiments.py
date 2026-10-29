@@ -66,7 +66,7 @@ def make_test_journey(
 
 
 def test_baseline_b1_cp4():
-    """Verify B1 CP4-only terminal classification."""
+    """Verify B1 CP4-only terminal classification (blames returner/customer custody on anomaly)."""
     clean_j = make_test_journey()
     res_clean = predict_b1_cp4(clean_j)
     assert res_clean.label == "ATTR_CONFIRMED_LEGITIMATE"
@@ -76,11 +76,11 @@ def test_baseline_b1_cp4():
         weights_per_cp=[[500.0]*3, [500.0]*3, [500.0]*3, [450.0]*3]
     )
     res_tamp = predict_b1_cp4(tampered_j)
-    assert res_tamp.label == "ATTR_STAGE_REVERSE_TRANSIT"
+    assert res_tamp.label == "ATTR_STAGE_CONSUMER_CUSTODY"
 
 
 def test_baseline_b2_endpoints():
-    """Verify B2 CP1+CP4 endpoint comparison."""
+    """Verify B2 CP1+CP4 endpoint comparison (blames returner/customer custody on anomaly)."""
     clean_j = make_test_journey()
     assert predict_b2_endpoints(clean_j).label == "ATTR_CONFIRMED_LEGITIMATE"
 
@@ -88,7 +88,7 @@ def test_baseline_b2_endpoints():
     tampered_j = make_test_journey(
         weights_per_cp=[[500.0]*3, [500.0]*3, [500.0]*3, [480.0]*3]
     )
-    assert predict_b2_endpoints(tampered_j).label == "ATTR_STAGE_REVERSE_TRANSIT"
+    assert predict_b2_endpoints(tampered_j).label == "ATTR_STAGE_CONSUMER_CUSTODY"
 
 
 def test_baseline_b3_unlinked():
@@ -258,3 +258,36 @@ def test_cli_eval_commands(tmp_path: Path):
     ])
     assert res_e3.exit_code == 0, f"res_e3 failed: {res_e3.output}"
     assert "Experiment E3 Completed Successfully" in res_e3.stdout
+
+
+def test_e1_mask_full_and_field(tmp_path: Path):
+    """Verify E1 evaluator with --mask full and --mask field generating separate tables and subgroup reports."""
+    res_assign = assign_staging_cells(n=120, seed=42, output_dir=tmp_path / "restricted")
+    split_manifest = tmp_path / "split_manifest.json"
+    perform_stratified_split(assignments_csv_path=res_assign["csv_path"], seed=42, output_path=split_manifest)
+
+    # 1. Full mask
+    res_full = evaluate_e1(
+        split_manifest_path=split_manifest,
+        staging_log_path=res_assign["csv_path"],
+        output_dir=tmp_path / "mask_test",
+        b_bootstrap=50,
+        mask="full",
+    )
+    assert (tmp_path / "mask_test" / "table3_full.csv").exists()
+    assert (tmp_path / "mask_test" / "table3_subgroups_full.csv").exists()
+    assert res_full["mask"] == "full"
+    assert len(res_full["subgroup_breakdowns"]) > 0
+
+    # 2. Field mask
+    res_field = evaluate_e1(
+        split_manifest_path=split_manifest,
+        staging_log_path=res_assign["csv_path"],
+        output_dir=tmp_path / "mask_test",
+        b_bootstrap=50,
+        mask="field",
+    )
+    assert (tmp_path / "mask_test" / "table3_field.csv").exists()
+    assert (tmp_path / "mask_test" / "table3_subgroups_field.csv").exists()
+    assert res_field["mask"] == "field"
+    assert len(res_field["subgroup_breakdowns"]) > 0

@@ -183,7 +183,7 @@ def generate_synthetic_dryrun_dataset(
     All records carry 'synthetic': True.
     Writes strictly to demo_data/synthetic_120/.
     """
-    target_dir = Path(output_dir) if output_dir else DEFAULT_SYNTHETIC_DIR
+    target_dir = (Path(output_dir).resolve() if output_dir else DEFAULT_SYNTHETIC_DIR).resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
     images_dir = target_dir / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
@@ -326,8 +326,10 @@ def generate_synthetic_dryrun_dataset(
             if tamper_stage > 0 and k > tamper_stage:
                 if cell == "forward_transit_damage":
                     w_curr -= 5.0  # Weight loss from carton rupture
-                elif cell in ("doorstep_substitution", "customer_tamper", "reverse_transit_tamper", "degraded_evidence", "ambiguous_evidence"):
+                elif cell in ("doorstep_substitution", "customer_tamper", "reverse_transit_tamper", "degraded_evidence"):
                     w_curr -= 42.0  # Item substituted with lighter surrogate
+                elif cell == "ambiguous_evidence":
+                    pass  # Defect obscured by glare; no weight change
 
             # Checkpoint degradation flags
             is_cp_degraded = (degraded_cp == f"cp{k}")
@@ -344,7 +346,7 @@ def generate_synthetic_dryrun_dataset(
                 readings = [round(float(w_curr + n), 2) for n in noise]
 
             # Seal identifier
-            if is_tampered_state and cell in ("doorstep_substitution", "customer_tamper", "reverse_transit_tamper", "degraded_evidence", "ambiguous_evidence"):
+            if is_tampered_state and cell in ("doorstep_substitution", "customer_tamper", "reverse_transit_tamper", "degraded_evidence"):
                 seal_qr = f"SEAL-VOID-{code[-4:]}"
             else:
                 seal_qr = orig_seal
