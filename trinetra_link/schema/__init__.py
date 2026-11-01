@@ -10,6 +10,7 @@ from trinetra_link.schema.models import (
     Journey,
     QualityReport,
     ReconcileResult,
+    SealObservation,
     StagingLogEntry,
 )
 
@@ -17,6 +18,7 @@ __all__ = [
     "Journey",
     "CheckpointObservation",
     "ImageRef",
+    "SealObservation",
     "QualityReport",
     "ReconcileResult",
     "Attribution",

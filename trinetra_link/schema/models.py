@@ -15,6 +15,15 @@ class ImageRef(BaseModel):
     exposure: Optional[float] = Field(default=None, description="EXIF exposure time in seconds if available")
 
 
+class SealObservation(BaseModel):
+    """Observation of an individual layered seal (Amendment v2.6, Section 4A)."""
+    layer: str = Field(..., description="Seal layer: L1_FWD, L1_RET, L2_BOX, or L3_ITEM")
+    seal_id_read: Optional[str] = Field(default=None, description="Decoded or OCR read ID of the seal")
+    state: str = Field(default="INTACT", description="Seal physical state: INTACT, TORN, MISSING, or UNREADABLE")
+    photo_path: Optional[str] = Field(default=None, description="Repository-relative path to photo showing this seal")
+    photo_sha256: Optional[str] = Field(default=None, description="SHA-256 digest of the seal photo")
+
+
 class CheckpointObservation(BaseModel):
     """Observation recorded at physical checkpoint k in 1..K."""
     journey_code: str = Field(..., description="Unique journey code, e.g. JRN-2026-0001")
@@ -27,6 +36,7 @@ class CheckpointObservation(BaseModel):
     scale_status: str = Field(default="OK", description="Status code from scale, e.g. OK, MANUAL, UNSTABLE, ERROR")
     calibration_date: Optional[str] = Field(default=None, description="Last calibration date (YYYY-MM-DD)")
     images: List[ImageRef] = Field(default_factory=list, description="Photographic assets captured at this checkpoint")
+    seals: List[SealObservation] = Field(default_factory=list, description="Layered seal observations at this checkpoint")
     seal_qr: Optional[str] = Field(default=None, description="Decoded payload of the tamper-evident security seal QR")
     serial: Optional[str] = Field(default=None, description="Observed serial number")
     imei: Optional[str] = Field(default=None, description="Observed IMEI for serialized cellular hardware")
@@ -86,6 +96,7 @@ class Attribution(BaseModel):
     per_modality_evidence: Dict[str, Any] = Field(default_factory=dict)
     rationale_text: str = Field(..., description="Human-readable causal explanation")
     decision: Optional[str] = Field(default=None, description="Normative operational decision e.g. DEC_REFUND")
+    breach_depth: str = Field(default="none", description="none, L1_only, box_entered, full_substitution")
 
 
 class StagingLogEntry(BaseModel):
